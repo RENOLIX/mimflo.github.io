@@ -1,6 +1,6 @@
 # MimFlo
 
-Plateforme française réalisée à partir des deux références fournies. Logo fourni conservé ; illustration de la jeune femme et paysage recréés en haute définition dans l’esprit de la référence. Polices approchantes : Nunito et Caveat, puisque la police source n’a pas été fournie.
+Plateforme française réalisée à partir des deux références fournies. Logo fourni conservé ; illustration du duo femme/homme et paysage recréés en haute définition dans l’esprit de la référence. Polices approchantes : Nunito et Caveat, puisque la police source n’a pas été fournie.
 
 ## Fonctionnalités
 
@@ -24,3 +24,7 @@ Plateforme française réalisée à partir des deux références fournies. Logo 
 TypeScript et compilation de production. Vérifications HTTP locales : refus des écritures anonymes, origine étrangère, validation du profil, sauvegarde des notes, démarrage de l’essai, sauvegarde de séance, limite de l’essai et choix de pack. Recherche et affichage vérifiés dans le navigateur.
 
 Le microphone, la lecture vocale réelle et une session client en production nécessitent une vérification avec l’utilisateur. Les données de test locales ne sont jamais incluses dans l’archive publiée.
+
+## Mise à jour de l’accueil
+
+Logo fourni affiché en entier dans l’en-tête et le pied de page. Illustration du duo avec casque violet et casque bleu. Palette équilibrée avec bleu, vert et mauve. Accueil enrichi : objectifs, méthode, articles, carnet personnel, packs, FAQ et essai gratuit.
