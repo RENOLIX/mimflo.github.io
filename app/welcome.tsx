@@ -3,7 +3,7 @@ import {useState} from 'react';
 import {BookOpen,Target,NotebookPen,BarChart3,Headphones,Mic,Check,Clock,User,GraduationCap,Briefcase,MessageCircle,ShieldCheck,Menu,X,Leaf,Globe,Sparkles} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {articles,plans} from './content';
-export function Brand({footer=false}: {footer?:boolean}){return <a href="#accueil" className={footer?'brand brand-footer':'brand'} aria-label="MimFlo — accueil"><img src="/assets/mimflo-original.jpeg" alt="Logo complet MimFlo : mascotte avec casque et microphone, nom MimFlo et ondes sonores" width="1440" height="720"/></a>}
+export function Brand({footer=false}: {footer?:boolean}){return <a href="#accueil" className={footer?'brand brand-footer':'brand'} aria-label="MimFlo — accueil"><img src="/assets/mimflo-transparent.png" alt="Logo complet MimFlo : mascotte avec casque et microphone, nom MimFlo et ondes sonores" width="1440" height="720"/></a>}
 const navs=[['accueil','Accueil'],['bibliotheque','Bibliothèque'],['parcours','Mes parcours'],['progression','Ma progression']];
 export default function Welcome({go}: {go:(view:string,articleId?:string)=>void}){
  const [menu,setMenu]=useState(false);

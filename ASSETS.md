@@ -11,3 +11,5 @@ Use case: compositing. Edit target: supplied MimFlo hero illustration. Primary r
 ## Logo
 
 Le fichier `public/assets/mimflo-original.jpeg` est la copie exacte du logo fourni. Il est affiché intégralement, sans découpe, dans l’en-tête et le pied de page.
+
+Logo transparent : public/assets/mimflo-transparent.png. Outil image_gen, consigne : retirer uniquement le fond blanc et conserver le logo complet, sa mascotte, MimFlo et les ondes, avec un canal alpha transparent.

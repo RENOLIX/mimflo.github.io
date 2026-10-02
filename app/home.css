@@ -25,3 +25,4 @@ body{color:var(--ink)}.header{height:146px;position:relative;max-width:1320px;pa
 .header>.expanded-menu{top:92px}
 @media(max-width:1000px){.header{height:94px}.header .brand{width:140px}.header .brand img{width:140px;height:70px}.header>.expanded-menu{top:86px}}
 @media(max-width:600px){.header{height:82px;padding-top:8px;padding-bottom:8px}.header .brand{width:124px}.header .brand img{width:124px;height:62px}.header>.expanded-menu{top:76px}}
+.brand img{mix-blend-mode:normal}
