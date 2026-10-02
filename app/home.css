@@ -18,3 +18,10 @@ body{color:var(--ink)}.header{height:146px;position:relative;max-width:1320px;pa
  .mobile-bottom-nav button:focus-visible{outline:2px solid #9b80b1;outline-offset:-2px}
  .mobile-bottom-nav button:active{background:#f1edf5}
 }
+/* Compact header with the full logo retained. */
+.header{height:100px;padding-top:10px;padding-bottom:10px}
+.header .brand{width:150px}
+.header .brand img{width:150px;height:75px}
+.header>.expanded-menu{top:92px}
+@media(max-width:1000px){.header{height:94px}.header .brand{width:140px}.header .brand img{width:140px;height:70px}.header>.expanded-menu{top:86px}}
+@media(max-width:600px){.header{height:82px;padding-top:8px;padding-bottom:8px}.header .brand{width:124px}.header .brand img{width:124px;height:62px}.header>.expanded-menu{top:76px}}
