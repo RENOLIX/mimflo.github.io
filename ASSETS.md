@@ -22,3 +22,6 @@ Logo transparent : public/assets/mimflo-transparent.png. Outil image_gen, consig
 - Outil : image_gen intégré, édition haute définition.
 - Consigne : restaurer fidèlement le microphone, MimFlo, les ondes et le slogan « Votre voix, votre plus belle progression ! », avec contours nets et fond transparent.
 - Bannière : textes HTML et détails vectoriels, dégradé pastel, relief et ombres CSS ; qualité nette indépendante de la résolution.
+
+
+Logo pastel corrigé : public/assets/mimflo-logo-pastel.png. Édition via image_gen intégré, consigne : modifier uniquement la palette du logo HD pour retrouver le mauve doux, le rose pastel et le bleu poudré de la référence client ; conserver la transparence, les formes et les textes.
