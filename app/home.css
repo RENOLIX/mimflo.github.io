@@ -80,3 +80,4 @@ body{color:var(--ink)}.header{height:146px;position:relative;max-width:1320px;pa
 @media(min-width:751px) and (max-width:1000px){.pack-intensif .reference-pack-action .btn[data-slot]{width:calc(100% - 56px)}}
 @media(max-width:750px){.pack-intensif .reference-pack-action .btn[data-slot]{width:calc(100% - 67px)}}
 @media(max-width:360px){.pack-intensif .reference-pack-action .btn[data-slot]{width:calc(100% - 55px)}}
+.pack-intensif .reference-pack-action{text-align:left}
