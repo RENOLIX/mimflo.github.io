@@ -31,3 +31,10 @@ Logo pastel corrigé : public/assets/mimflo-logo-pastel.png. Édition via image_
 - Fichier : public/assets/hero-study.png.
 - Outil : image_gen intégré, édition du duo existant.
 - Consigne : garder les personnages et le style aquarelle pastel, enlever le casque du garçon et les microphones, ajouter un ordinateur, des livres et un cahier pour créer une scène d’étude, avec fond transparent.
+
+## Mascottes des packs — 5 octobre 2026
+Outil : image_gen intégré, trois générations à partir de la mascotte fournie. Même fennec crème/doré aux grandes oreilles, yeux bruns, casque lavande et sweat bleu poudré, rendu 3D HD et fond transparent.
+- public/assets/mascot-sprint.png : tête et deux mains regardant en cachette derrière le bord gauche d’une carte invisible.
+- public/assets/mascot-intensif.png : mascotte debout faisant signe, placée près du bouton.
+- public/assets/mascot-performance.png : mascotte assise sur un bord invisible, pieds pendants, placée en haut à droite.
+Contraintes : conserver l’identité et les couleurs pastel de la référence, ne pas dessiner de carte, de décor ou de texte, garder la transparence.
