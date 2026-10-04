@@ -13,3 +13,12 @@ Use case: compositing. Edit target: supplied MimFlo hero illustration. Primary r
 Le fichier `public/assets/mimflo-original.jpeg` est la copie exacte du logo fourni. Il est affiché intégralement, sans découpe, dans l’en-tête et le pied de page.
 
 Logo transparent : public/assets/mimflo-transparent.png. Outil image_gen, consigne : retirer uniquement le fond blanc et conserver le logo complet, sa mascotte, MimFlo et les ondes, avec un canal alpha transparent.
+
+
+## Logo de remplacement — 4 octobre 2026
+
+- Source : logo microphone fourni par le client.
+- Fichier : public/assets/mimflo-logo-hd.png (2168 × 725, PNG transparent).
+- Outil : image_gen intégré, édition haute définition.
+- Consigne : restaurer fidèlement le microphone, MimFlo, les ondes et le slogan « Votre voix, votre plus belle progression ! », avec contours nets et fond transparent.
+- Bannière : textes HTML et détails vectoriels, dégradé pastel, relief et ombres CSS ; qualité nette indépendante de la résolution.
