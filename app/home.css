@@ -43,3 +43,14 @@ body{color:var(--ink)}.header{height:146px;position:relative;max-width:1320px;pa
 @media(max-width:600px){.header .brand,.header .brand img{width:176px}.header .brand img{height:48px}.free-trial-banner{grid-template-columns:minmax(0,1fr);gap:12px;padding:19px 20px;margin-top:18px;margin-bottom:9px}.trial-banner-title{gap:13px;justify-content:center}.trial-banner-title h2{font-size:29px!important}.trial-banner-gift{width:44px;height:48px}.trial-banner-title p{font-size:10px}.trial-banner-copy{text-align:center;font-size:12px;line-height:1.7}.trial-banner-button[data-slot]{justify-self:center;max-width:none;font-size:12px;padding:12px 20px}.brand-footer,.brand-footer img{width:200px}.brand-footer img{height:55px}}
 @media(max-width:360px){.header .brand,.header .brand img{width:150px}.trial-banner-title h2{font-size:26px!important}.trial-banner-title{gap:9px}}
 .free-trial-banner{border:2px solid #ee879e}
+/* Slim header; larger artwork uses the existing transparent logo margins. */
+.header{height:76px;padding:4px 24px;gap:20px}
+.header .brand{position:relative;display:flex;align-items:center;width:245px;height:68px;flex-shrink:0}
+.header .brand img{position:absolute;top:50%;left:-7px;width:260px;height:87px;max-width:none;transform:translateY(-50%);object-fit:contain}
+.header nav{gap:18px;flex:1;justify-content:center}
+.header nav button{font-size:13px;white-space:nowrap}
+.header>.expanded-menu{top:71px}
+@media(max-width:1180px){.header nav button:nth-child(3),.header nav button:nth-child(4){display:none}.header nav button:nth-child(5),.header nav button:nth-child(6){display:inline-block}.header nav{gap:15px}.header .brand{width:225px}.header .brand img{width:242px;height:81px}}
+@media(max-width:850px){.header{gap:12px;padding:4px 18px}.header .brand{width:205px}.header .brand img{width:222px;height:74px}.header nav{gap:12px}.header nav button{font-size:12px}.header nav button:nth-child(2){display:none}}
+@media(max-width:600px){.header{height:66px;padding:3px 14px;gap:9px}.header .brand{width:191px;height:60px}.header .brand img{width:209px;height:70px;left:-7px}.header nav{display:none}.header>.expanded-menu{top:61px}.header-actions>.btn[data-slot]{padding:9px 12px;font-size:11px}.welcome-page .hero-copy .actions .btn{min-width:168px}}
+@media(max-width:360px){.header .brand{width:166px}.header .brand img{width:184px;height:62px}.header-actions>.btn[data-slot]{padding:9px 10px;font-size:10px}}

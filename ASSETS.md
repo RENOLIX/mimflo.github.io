@@ -25,3 +25,9 @@ Logo transparent : public/assets/mimflo-transparent.png. Outil image_gen, consig
 
 
 Logo pastel corrigé : public/assets/mimflo-logo-pastel.png. Édition via image_gen intégré, consigne : modifier uniquement la palette du logo HD pour retrouver le mauve doux, le rose pastel et le bleu poudré de la référence client ; conserver la transparence, les formes et les textes.
+
+
+## Hero étude
+- Fichier : public/assets/hero-study.png.
+- Outil : image_gen intégré, édition du duo existant.
+- Consigne : garder les personnages et le style aquarelle pastel, enlever le casque du garçon et les microphones, ajouter un ordinateur, des livres et un cahier pour créer une scène d’étude, avec fond transparent.
