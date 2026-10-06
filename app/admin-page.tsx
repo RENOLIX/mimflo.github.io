@@ -3,7 +3,7 @@ import {useEffect,useState} from 'react';
 import {ShieldCheck,LogOut} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
-import AdminConsole from './admin-console';
+import AdminConsole from './admin-dashboard';
 import {memberRequest,setMemberToken,clearMemberToken} from './member-api';
 import {siteHref} from './admin-url';
 import './members.css';

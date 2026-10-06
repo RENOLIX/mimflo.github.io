@@ -4,12 +4,21 @@ Le site public reste sur GitHub Pages. Les Functions du projet Cloudflare Pages 
 
 ## Administration
 
-Connectez-vous depuis `#inscription`, puis ouvrez `#admin`. Le compte propriétaire peut créer des administrateurs et des clients. Changez le mot de passe initial depuis Mon profil → Sécurité de mon compte.
+Connectez-vous sur `https://renolix.github.io/mimflo.github.io/admin/`. Le compte propriétaire peut créer des administrateurs et des clients. Changez le mot de passe initial depuis Mon profil → Sécurité de mon compte sur le site.
 
-- **Articles par pack** : créez les textes, choisissez les packs et cochez Publier. Un seul article peut être affecté à l'essai gratuit.
+- **Articles & packs** : les cartes « Mes packs » et « Ajouter un nouvel article » ouvrent la bibliothèque ou l'éditeur. Les articles se présentent sur quatre colonnes sur ordinateur et peuvent être modifiés. Les nouvelles thématiques sont conservées automatiquement. Un seul article peut être affecté à l'essai gratuit.
 - **Paiements** : vérifiez réellement le paiement, indiquez sa référence, puis validez. Le pack commence alors pour 5, 10 ou 15 jours.
 - **Clients** : consultez le dossier, les accès, les demandes, les séances et les notes ; vous pouvez suspendre un accès.
-- **Réglages** : renseignez les instructions de paiement.
+- **Comptes** : le formulaire apparaît au clic sur Ajouter un nouveau compte. La suppression désactive le compte et révoque ses sessions ; il reste restaurable avec son historique et son empreinte d'essai. Le propriétaire ne peut pas être supprimé.
+- **Réglages** : remplacez l'adresse PayPal fictive par votre adresse réelle. Les données de paiement ne sont jamais demandées directement par MimFlo.
+
+## Images et checkout
+
+Les téléversements JPEG, PNG et WebP sont optimisés côté navigateur (1600 px maximum) et conservés dans D1. Chaque image optimisée peut peser au maximum 1,5 Mo ; un article accepte huit images avec légende et emplacement dans les paragraphes. Le serveur valide le format et réserve le téléversement aux administrateurs. Les images sont consultables via une adresse signée valable une heure, fournie uniquement avec un article autorisé ou dans l'administration. Une personne disposant de cette adresse peut consulter l'image jusqu'à son expiration.
+
+Le checkout exige un compte connecté et collecte les coordonnées du client, son pays, son niveau et son objectif. La commande apparaît dans Paiements avec un identifiant unique. Les montants sont fixés par le serveur : 10, 15 et 20 USD. Une nouvelle tentative de checkout réutilise la commande en attente du même pack.
+
+Avec l'adresse provisoire `paypal@example.invalid`, la commande est enregistrée sans demander de paiement. Une fois une véritable adresse configurée, le bouton dirige vers le paiement hébergé PayPal Standard. Le retour de PayPal n'active jamais les accès : l'administrateur doit vérifier le paiement reçu et sa référence. Aucun webhook de validation automatique n'est configuré.
 
 Les articles créés dans l'administration restent dans la base privée, hors du code du site public. Une simple inscription ou demande d'abonnement n'ouvre aucun pack payant.
 
