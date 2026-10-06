@@ -1,0 +1,1 @@
+export function readingPassages(paragraphs:string[]){const words=paragraphs.join('\n\n').split(/\s+/).filter(Boolean),passages:string[]=[];for(let i=0;i<words.length;i+=220)passages.push(words.slice(i,i+220).join(' '));return passages;}

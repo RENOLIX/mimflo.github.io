@@ -34,7 +34,17 @@ En l'absence de service d'envoi, les inscriptions fonctionnent mais un administr
 
 ## Données de progression
 
-La durée, la transcription facultative et la proportion de mots reconnus sont sauvegardées. L'audio reste dans l'onglet et n'est pas stocké. Le score de transcription ne constitue pas une évaluation phonétique par IA ; ce service reste à connecter.
+La lecture peut être envoyée à Cloudflare Workers AI après un consentement explicite. Whisper large v3 turbo transcrit en français ; MimFlo compare les mots avec un passage de 220 mots maximum et calcule un score de fidélité au texte, les omissions, substitutions, ajouts et le débit de mots reconnus. Les accents français sont conservés. Ce résultat n'est ni une mesure des phonèmes ou de l'accent, ni un niveau CECRL. Les écarts peuvent provenir de la reconnaissance vocale. Aucun LLM ne fabrique un score de prononciation.
+
+Le navigateur convertit l'enregistrement en WAV mono 16 kHz. Le serveur vérifie le WAV, sa durée (3 à 120 secondes), son volume, le compte et l'accès au passage. Le texte attendu provient de l'article autorisé côté serveur. MimFlo stocke la transcription et l'évaluation dans les séances, visibles dans le dossier client ; aucun fichier audio n'est conservé dans D1.
+
+Le compte Cloudflare était sur **Workers Free**, vérifié le 6 octobre 2026. Workers AI fournit 10 000 neurones/jour, remis à zéro à 00 h UTC ; le modèle Whisper choisi utilise environ 46,63 neurones/minute selon la documentation consultée. MimFlo réserve atomiquement au maximum **50 appels/jour pour tout le site**, **5 appels/jour par compte** et **une analyse réussie pour l'essai gratuit**. Même les appels échoués restent comptés dans la limite quotidienne. Une reprise avec le même identifiant retourne le résultat enregistré sans nouvelle inférence. Le quota Cloudflare reste partagé avec les autres applications du compte : leur consommation peut rendre le service indisponible plus tôt. Sur Workers Free, Cloudflare bloque le dépassement ; aucune montée de plan ou facturation n'est activée. Ne passez pas le compte en Paid si vous souhaitez conserver cette garantie du fournisseur.
+
+Le binding `AI` et `AI_ENABLED = "true"` sont dans `backend/pages/wrangler.toml`. `AI_ENABLED = "false"` désactive les analyses tout en gardant l'enregistrement manuel. Le traitement fonctionne ordinateur du propriétaire éteint. Le traitement distant de la voix est annoncé avant l'envoi ; la politique de confidentialité Cloudflare s'applique au fournisseur.
+
+Le diagnostic propriétaire `/admin/ai-check` accepte un WAV de contrôle de dix secondes maximum avec consentement, au plus cinq fois par jour pour le compte. Cela ajoute au maximum environ 39 neurones au budget réservé de MimFlo. Il ne conserve aucun enregistrement ni transcription de contrôle.
+
+`node backend/verify-ai.mjs` teste le véritable handler avec SQLite et une inférence simulée : consentement, accès, formats et silence, différences en français, sauvegarde, idempotence, concurrence de l'essai, quotas et coupure. Il n'appelle aucun service externe.
 
 ## Déploiement et contrôles
 
