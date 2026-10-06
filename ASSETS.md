@@ -38,3 +38,8 @@ Outil : image_gen intégré, trois générations à partir de la mascotte fourni
 - public/assets/mascot-intensif.png : mascotte debout faisant signe, placée près du bouton.
 - public/assets/mascot-performance.png : mascotte assise sur un bord invisible, pieds pendants, placée en haut à droite.
 Contraintes : conserver l’identité et les couleurs pastel de la référence, ne pas dessiner de carte, de décor ou de texte, garder la transparence.
+
+## Logo fourni — 6 octobre 2026
+- Fichier final : public/assets/mimflo-logo-3d-transparent.png.
+- Outil : image_gen intégré, édition du logo fourni.
+- Consigne finale : retirer uniquement le fond crème, garder le microphone, le casque, le mot MimFlo et les barres sonores, conserver les teintes pastel douces, les formes et la disposition, sans ajout de texte ni accentuation. Fond réellement transparent avec une petite marge.
