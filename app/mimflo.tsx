@@ -24,7 +24,7 @@ const navs=[['accueil','Accueil'],['bibliotheque','Bibliothèque'],['parcours','
 const allViews=['accueil','bibliotheque','parcours','progression','notes','profil','inscription','essai','article','aide','admin','abonnement','verification','checkout','commande','bienvenue'];
 function routeFromHash(hash:string){const [destination,articleId]=hash.replace(/^#/,'').split('/');return {view:destination==='packs'||destination==='abonnements'?'accueil':allViews.includes(destination)?destination:'accueil',articleId:articleId||'reseaux'};}
 const categoryIcons=[BookOpen,Leaf,Laptop,Users,Plane,GraduationCap,Briefcase,HeartPulse,Palette,Home,Globe,Car,Utensils];
-function Choice({value,onChange,options,placeholder}:any){return <Select value={value} onValueChange={onChange}><SelectTrigger><SelectValue placeholder={placeholder}/></SelectTrigger><SelectContent>{options.map((v:string)=><SelectItem value={v} key={v}>{v}</SelectItem>)}</SelectContent></Select>}
+function Choice({value,onChange,options,placeholder}:any){return <Select value={value} onValueChange={v=>{if(v)onChange(v)}}><SelectTrigger><SelectValue placeholder={placeholder}/></SelectTrigger><SelectContent>{options.map((v:string)=><SelectItem value={v} key={v}>{v}</SelectItem>)}</SelectContent></Select>}
 function Heading({title,sub,tag='VOTRE VOIX, VOTRE PLUS BELLE PROGRESSION',children}:any){return <div className="page-heading"><div><span className="eyebrow">{tag}</span><h1>{title}</h1><p>{sub}</p></div>{children}</div>}
 const emptyAccount={user:null,profile:null,notes:[],sessions:[],articles:[],requests:[],entitlements:[]};
 export default function MimFlo({initialHash}:{initialHash?:string}){
