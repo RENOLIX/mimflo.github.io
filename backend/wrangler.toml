@@ -11,7 +11,7 @@ crons = ["0 3 * * *"]
 SMTP_HOST = "mail01.lwspanel.com"
 SMTP_USER = "contact@mimflo.com"
 MAIL_FROM = "contact@mimflo.com"
-ALLOWED_ORIGIN = "https://renolix.github.io"
+ALLOWED_ORIGIN = "https://mimflo.com"
 
 [[d1_databases]]
 binding = "DB"

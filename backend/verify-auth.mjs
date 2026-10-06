@@ -17,7 +17,7 @@ const {hashPassword}=await import(new URL('security.mjs',output));
 const {validPassword}=await import(new URL('password-rules.mjs',output));
 for(const weak of ['shortA1!','aaaaaaaaaaaa','Abcdefghijk1','ABCDEFGHI1!?','abcdefghij1!','Abcdefghij!?'])assert.equal(validPassword(weak),false);
 assert.equal(validPassword('BonjourMonde42!'),true);assert.equal(validPassword('Écolefrançaise42!'),true);
-const env={DB,ALLOWED_ORIGIN:'https://renolix.github.io',IP_PEPPER:'qa',DEV_MODE:'local'};
+const env={DB,ALLOWED_ORIGIN:'https://mimflo.com',IP_PEPPER:'qa',DEV_MODE:'local'};
 async function req(path,body,token,ip='127.0.0.1'){const r=await worker.fetch(new Request('https://qa.example'+path,{method:body?'POST':'GET',headers:{Origin:env.ALLOWED_ORIGIN,'Content-Type':'application/json','CF-Connecting-IP':ip,...(token?{Authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})}),env);return {status:r.status,data:await r.json()};}
 assert.equal((await req('/auth/register',{email:'weak@example.com',firstName:'QA',lastName:'Test',consent:true,password:'aaaaaaaaaaaa'})).status,400);
 const classic=await req('/auth/register',{email:'classic@gmail.com',firstName:'QA',lastName:'Test',consent:true,password:'BonjourMonde42!'});assert.equal(classic.status,200);

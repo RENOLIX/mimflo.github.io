@@ -4,7 +4,7 @@ Le site public reste sur GitHub Pages. Les Functions du projet Cloudflare Pages 
 
 ## Administration
 
-Connectez-vous sur `https://renolix.github.io/mimflo.github.io/admin/`. Le compte propriétaire peut créer des administrateurs et des clients. Changez le mot de passe initial depuis Mon profil → Sécurité de mon compte sur le site.
+Connectez-vous sur `https://mimflo.com/admin/`. Le compte propriétaire peut créer des administrateurs et des clients. Changez le mot de passe initial depuis Mon profil → Sécurité de mon compte sur le site.
 
 - **Articles & packs** : les cartes « Mes packs » et « Ajouter un nouvel article » ouvrent la bibliothèque ou l'éditeur. Les articles se présentent sur quatre colonnes sur ordinateur et peuvent être modifiés. Les nouvelles thématiques sont conservées automatiquement. Un seul article peut être affecté à l'essai gratuit.
 - **Paiements** : vérifiez réellement le paiement, indiquez sa référence, puis validez. Le pack commence alors pour 5, 10 ou 15 jours.
@@ -58,7 +58,7 @@ Le Worker `mimflo-members` n'expose plus de route publique ; il conserve uniquem
 
 La connexion e-mail/mot de passe reste disponible. Les nouveaux mots de passe (inscription, changement, création dans l’administration) exigent 12 à 128 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial. Les comptes existants conservent leur accès.
 
-Dans Google Auth Platform, créer une application externe MimFlo avec uniquement les données d’identité de base (nom et e-mail), puis un client OAuth de type Application Web. Ajouter l’origine JavaScript autorisée https://renolix.github.io (sans chemin). L’intégration utilise Google Identity Services en popup : aucun secret client et aucun URI de redirection ne sont nécessaires. Dans /admin/, Réglages → Connexion avec Google, sauvegarder l’identifiant public …apps.googleusercontent.com. Passer l’application Google en production pour que tous les clients puissent se connecter. Aucun service facturé n’est nécessaire.
+Dans Google Auth Platform, créer une application externe MimFlo avec uniquement les données d’identité de base (nom et e-mail), puis un client OAuth de type Application Web. Ajouter l’origine JavaScript autorisée https://mimflo.com (sans chemin). L’intégration utilise Google Identity Services en popup : aucun secret client et aucun URI de redirection ne sont nécessaires. Dans /admin/, Réglages → Connexion avec Google, sauvegarder l’identifiant public …apps.googleusercontent.com. Passer l’application Google en production pour que tous les clients puissent se connecter. Aucun service facturé n’est nécessaire.
 
 Le bouton Google est masqué tant que le client n’est pas configuré. Un compte Google est créé seulement depuis Inscription après acceptation des conditions. Les jetons sont vérifiés côté serveur (signature RSA, audience, émetteur, expiration, nonce à usage unique et preuve navigateur). Aucun compte existant n’est associé automatiquement sur la seule base de l’e-mail. Les comptes Google ont le rôle client ; les restrictions d’accès et d’essai IP/e-mail sont identiques. Les e-mails hors Gmail/Workspace doivent être confirmés par le mécanisme existant avant l’essai.
 
