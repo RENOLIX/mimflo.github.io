@@ -4,9 +4,9 @@ import {readFile,mkdir,writeFile,readdir} from 'node:fs/promises';
 import ts from 'typescript';
 // Real SQLite constraints and real request handler; inference is a deterministic mock.
 const output=new URL('../.qa/auth-tests/',import.meta.url);await mkdir(output,{recursive:true});
-for(const [source,name] of [['backend/google-auth.ts','google-auth'],['app/password-rules.ts','password-rules'],['backend/security.ts','security'],['app/countries.ts','countries'],['app/reading-passages.ts','reading-passages'],['backend/reading-analysis.ts','reading-analysis'],['backend/index.ts','index']]){
+for(const [source,name] of [['backend/google-auth.ts','google-auth'],['app/password-rules.ts','password-rules'],['backend/security.ts','security'],['app/reading-duration.ts','reading-duration'],['app/countries.ts','countries'],['app/reading-passages.ts','reading-passages'],['backend/reading-analysis.ts','reading-analysis'],['backend/index.ts','index']]){
  let code=ts.transpileModule(await readFile(source,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
- code=code.replaceAll("'./google-auth'","'./google-auth.mjs'").replaceAll("'../app/password-rules'","'./password-rules.mjs'").replaceAll("'./security'","'./security.mjs'").replaceAll("'../app/countries'","'./countries.mjs'").replaceAll("'../app/reading-passages'","'./reading-passages.mjs'").replaceAll("'./reading-analysis'","'./reading-analysis.mjs'");await writeFile(new URL(name+'.mjs',output),code);
+ code=code.replaceAll("'../app/reading-duration'","'./reading-duration.mjs'").replaceAll("'./google-auth'","'./google-auth.mjs'").replaceAll("'../app/password-rules'","'./password-rules.mjs'").replaceAll("'./security'","'./security.mjs'").replaceAll("'../app/countries'","'./countries.mjs'").replaceAll("'../app/reading-passages'","'./reading-passages.mjs'").replaceAll("'./reading-analysis'","'./reading-analysis.mjs'");await writeFile(new URL(name+'.mjs',output),code);
 }
 const {default:worker}=await import(new URL('index.mjs',output));const {digest}=await import(new URL('security.mjs',output));const {readingAssessment}=await import(new URL('reading-analysis.mjs',output));
 const sql=new DatabaseSync(':memory:');for(const file of (await readdir('backend/migrations')).filter(f=>f.endsWith('.sql')).sort())sql.exec(await readFile('backend/migrations/'+file,'utf8'));
@@ -28,6 +28,8 @@ assert.equal((await req('/account',undefined,classic.data.token)).data.user,null
 const ownerToken='owner-token';sql.prepare('INSERT INTO users(id,email,email_key,password_hash,first_name,last_name,created_at,role) VALUES (?,?,?,?,?,?,?,?)').run('owner','owner@example.com','owner@example.com',await hashPassword('BonjourMonde42!'),'Owner','QA',Date.now(),'owner');sql.prepare('INSERT INTO auth_sessions VALUES (?,?,?)').run(await digest(ownerToken),'owner',Date.now()+60000);
 assert.equal((await req('/admin/action',{action:'createAccount',email:'admin@example.com',firstName:'Admin',lastName:'QA',password:'aaaaaaaaaaaa'},ownerToken)).status,400);
 assert.equal((await req('/account',undefined,ownerToken)).data.emailDeliveryEnabled,false);
+assert.equal((await req('/admin/action',{action:'article',article:{id:'duration-check',title:'Lecture courte',category:'Société',level:'A2',minutes:55,paragraphs:['Bonjour, nous apprenons à parler français ensemble.'],packs:[],published:false}},ownerToken)).status,200);
+assert.equal(sql.prepare('SELECT minutes FROM articles WHERE id=?').get('duration-check').minutes,1,'Server computes duration from text, ignoring an arbitrary supplied duration');
 assert.equal((await req('/auth/google/config')).data.enabled,false);
 assert.equal((await req('/auth/google/challenge',{mode:'login',proof:crypto.randomUUID()+crypto.randomUUID()})).status,503);
 const clientId='12345-test.apps.googleusercontent.com';assert.equal((await req('/admin/action',{action:'google',clientId},ownerToken)).status,200);
