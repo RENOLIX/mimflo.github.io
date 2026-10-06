@@ -1,0 +1,11 @@
+name = "mimflo-members"
+pages_build_output_dir = "../../.qa/pages"
+compatibility_date = "2026-05-22"
+
+[vars]
+ALLOWED_ORIGIN = "https://renolix.github.io"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mimflo-members"
+database_id = "5ad3feca-1fc6-4a9f-acd8-d99373f018af"

@@ -24,6 +24,8 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npx vite build --config vite.pages.config.ts
+        env:
+          MIMFLO_MEMBER_API: ${{ vars.MIMFLO_MEMBER_API }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

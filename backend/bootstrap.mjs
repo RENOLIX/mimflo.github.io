@@ -1,0 +1,12 @@
+import {webcrypto,randomBytes,randomUUID} from 'node:crypto';
+import {mkdir,writeFile} from 'node:fs/promises';
+const password=randomBytes(18).toString('base64url')+'!7a',email='admin@mimflo.local',salt=randomBytes(16).toString('base64'),encoder=new TextEncoder();
+const key=await webcrypto.subtle.importKey('raw',encoder.encode(password),'PBKDF2',false,['deriveBits']);
+const bits=await webcrypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:encoder.encode(salt),iterations:100000},key,256);
+const hashed=`pbkdf2:100000:${salt}:${Buffer.from(bits).toString('base64')}`;
+await mkdir('.qa',{recursive:true});await mkdir('outputs',{recursive:true});
+const sql=`INSERT INTO users(id,email,email_key,password_hash,role,email_verified,first_name,last_name,level,created_at) VALUES ('${randomUUID()}','${email}','${email}','${hashed}','owner',1,'Admin','MimFlo','B1',${Date.now()});`;
+await writeFile('.qa/bootstrap-owner.sql',sql);
+await writeFile('outputs/mimflo-admin-identifiants.txt',`Compte propriétaire MimFlo\nE-mail : ${email}\nMot de passe : ${password}\nConnexion : https://renolix.github.io/mimflo.github.io/#inscription\nAdministration : https://renolix.github.io/mimflo.github.io/#admin\nNe pas publier ces identifiants.\n`);
+await writeFile('backend/.dev.vars',`IP_PEPPER="${randomBytes(32).toString('hex')}"\nDEV_MODE="local"\n`);
+console.log('Compte propriétaire préparé ; identifiants enregistrés dans outputs/mimflo-admin-identifiants.txt.');
