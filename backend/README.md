@@ -34,7 +34,7 @@ En l'absence de service d'envoi, les inscriptions fonctionnent mais un administr
 
 ## Données de progression
 
-La lecture peut être envoyée à Cloudflare Workers AI après un consentement explicite. Whisper large v3 turbo transcrit en français ; MimFlo compare les mots avec un passage de 220 mots maximum et calcule un score de fidélité au texte, les omissions, substitutions, ajouts et le débit de mots reconnus. Les accents français sont conservés. Ce résultat n'est ni une mesure des phonèmes ou de l'accent, ni un niveau CECRL. Les écarts peuvent provenir de la reconnaissance vocale. Aucun LLM ne fabrique un score de prononciation.
+La lecture peut être envoyée à Cloudflare Workers AI après un consentement explicite. Whisper large v3 turbo transcrit en français ; MimFlo compare les mots avec un passage de 600 mots maximum et calcule un score de fidélité au texte, les omissions, substitutions, ajouts et le débit de mots reconnus. Les accents français sont conservés. Ce résultat n'est ni une mesure des phonèmes ou de l'accent, ni un niveau CECRL. Les écarts peuvent provenir de la reconnaissance vocale. Aucun LLM ne fabrique un score de prononciation.
 
 Le navigateur convertit l'enregistrement en WAV mono 16 kHz. Le serveur vérifie le WAV, sa durée (3 à 120 secondes), son volume, le compte et l'accès au passage. Le texte attendu provient de l'article autorisé côté serveur. MimFlo stocke la transcription et l'évaluation dans les séances, visibles dans le dossier client ; aucun fichier audio n'est conservé dans D1.
 
@@ -63,3 +63,5 @@ Dans Google Auth Platform, créer une application externe MimFlo avec uniquement
 Le bouton Google est masqué tant que le client n’est pas configuré. Un compte Google est créé seulement depuis Inscription après acceptation des conditions. Les jetons sont vérifiés côté serveur (signature RSA, audience, émetteur, expiration, nonce à usage unique et preuve navigateur). Aucun compte existant n’est associé automatiquement sur la seule base de l’e-mail. Les comptes Google ont le rôle client ; les restrictions d’accès et d’essai IP/e-mail sont identiques. Les e-mails hors Gmail/Workspace doivent être confirmés par le mécanisme existant avant l’essai.
 
 Tests : node backend/verify-auth.mjs (SQLite réelle, signatures RSA locales, aucun appel Google externe).
+
+La durée maximale est calculée depuis le texte du passage : 120 mots/minute, plus 50 % et une minute pour les pauses, arrondie à la minute (minimum 3, maximum 10 minutes). Le serveur recalcule cette limite ; le client ne peut pas la modifier. Le budget quotidien réserve aussi 6 000 secondes audio pour tout le site, y compris les échecs, afin de conserver la marge du quota gratuit. Les anciennes réservations comptent 120 secondes chacune. L’écoute utilise les voix françaises du navigateur, avec un choix de voix et de vitesse, pour le passage ou tout l’article.

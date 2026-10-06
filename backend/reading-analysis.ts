@@ -1,3 +1,4 @@
+import {MAX_READING_SECONDS} from '../app/reading-duration';
 // This is a reading/transcription assessment, never a phonetic or CEFR score.
 export function readingAssessment(expectedText:string,transcript:string,seconds:number){
  const words=(s:string)=>s.toLocaleLowerCase('fr').normalize('NFC').replace(/[’']/g,' ').match(/[\p{L}\p{N}]+/gu)||[];
@@ -16,11 +17,11 @@ export function readingAssessment(expectedText:string,transcript:string,seconds:
  if(added)tips.push('Repérez les ajouts dans votre enregistrement et prenez le temps de suivre le texte.');
  return {version:1,kind:'reading',score,expectedWords:expected.length,recognizedWords:spoken.length,matches,missing:missed,different:changed,added,wordsPerMinute:Math.round(spoken.length/Math.max(1,seconds)*60),differences:differences.slice(0,60),tips,limitation:'Whisper peut se tromper. Ce score compare les mots transcrits au texte : il ne mesure ni les phonèmes, ni l’accent, ni le niveau CECRL.'};
 }
-export function validateAudio(bytes:Uint8Array){
- if(bytes.length<44||bytes.length>3840044)throw new Error('Audio invalide ou trop volumineux.');
+export function validateAudio(bytes:Uint8Array,maxSeconds=MAX_READING_SECONDS){
+ if(bytes.length<44||bytes.length>44+MAX_READING_SECONDS*32000)throw new Error('Audio invalide ou trop volumineux.');
  const v=new DataView(bytes.buffer),tag=(a:number,n:number)=>String.fromCharCode(...bytes.slice(a,a+n));
  if(tag(0,4)!=='RIFF'||tag(8,4)!=='WAVE'||tag(12,4)!=='fmt '||v.getUint32(16,true)!==16||v.getUint16(20,true)!==1||v.getUint16(22,true)!==1||v.getUint32(24,true)!==16000||v.getUint32(28,true)!==32000||v.getUint16(32,true)!==2||v.getUint16(34,true)!==16||tag(36,4)!=='data'||v.getUint32(40,true)!==bytes.length-44||v.getUint32(4,true)!==bytes.length-8||(bytes.length-44)%2)throw new Error('Format attendu : WAV mono, 16 kHz, 16 bits.');
- const seconds=(bytes.length-44)/32000;if(seconds<3||seconds>120)throw new Error('L’analyse accepte une lecture de 3 secondes à 2 minutes.');
+ const seconds=(bytes.length-44)/32000;if(seconds<3||seconds>maxSeconds)throw new Error(`L’analyse de ce passage accepte une lecture de 3 secondes à ${maxSeconds/60} minutes.`);
  let energy=0,n=0;for(let x=44;x<bytes.length;x+=128){energy+=(v.getInt16(x,true)/32768)**2;n++;}if(Math.sqrt(energy/n)<.002)throw new Error('Aucune voix audible. Vérifiez votre microphone et recommencez.');
  return {seconds,bytes};
 }

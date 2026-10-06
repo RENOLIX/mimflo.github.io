@@ -11,6 +11,6 @@ export async function memberRequest(path:string,body?:any){
 }
 export async function memberAudioRequest(id:string,articleId:string,audio:Uint8Array,passageIndex:number){
  if(!memberApi)throw new Error('L’analyse IA est en cours de configuration.');
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),300000);
  try{const r=await fetch(memberApi+'/analysis?'+new URLSearchParams({id,articleId,consent:'true',passageIndex:String(passageIndex)}),{method:'POST',headers:{'Content-Type':'audio/wav',Authorization:'Bearer '+sessionStorage.getItem(tokenKey)},body:audio as BodyInit,signal:controller.signal});const data:any=await r.json();if(!r.ok)throw new Error(data.error||'L’analyse n’est pas disponible.');return data;}catch(e){if(controller.signal.aborted)throw new Error('L’analyse prend plus de temps que prévu. Réessayez pour récupérer son résultat sans relancer le calcul.');throw e;}finally{clearTimeout(timer)}
 }

@@ -1,0 +1,1 @@
+ALTER TABLE analysis_jobs ADD COLUMN audio_seconds INTEGER NOT NULL DEFAULT 120;
