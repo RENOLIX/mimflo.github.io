@@ -53,3 +53,13 @@ Créez le dossier `.qa/pages` puis exécutez `wrangler pages deploy --cwd backen
 Le Worker `mimflo-members` n'expose plus de route publique ; il conserve uniquement le nettoyage quotidien des sessions expirées, tokens de vérification et compteurs de tentatives. Publiez ce nettoyage avec `wrangler deploy --config backend/wrangler.toml`.
 
 `node backend/verify-local.mjs` exécute des scénarios contre localhost uniquement et crée des données de test dans la base locale. Les identifiants initiaux sont conservés dans un fichier local ignoré par Git, jamais dans le dépôt.
+
+## Connexion Google
+
+La connexion e-mail/mot de passe reste disponible. Les nouveaux mots de passe (inscription, changement, création dans l’administration) exigent 12 à 128 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial. Les comptes existants conservent leur accès.
+
+Dans Google Auth Platform, créer une application externe MimFlo avec uniquement les données d’identité de base (nom et e-mail), puis un client OAuth de type Application Web. Ajouter l’origine JavaScript autorisée https://renolix.github.io (sans chemin). L’intégration utilise Google Identity Services en popup : aucun secret client et aucun URI de redirection ne sont nécessaires. Dans /admin/, Réglages → Connexion avec Google, sauvegarder l’identifiant public …apps.googleusercontent.com. Passer l’application Google en production pour que tous les clients puissent se connecter. Aucun service facturé n’est nécessaire.
+
+Le bouton Google est masqué tant que le client n’est pas configuré. Un compte Google est créé seulement depuis Inscription après acceptation des conditions. Les jetons sont vérifiés côté serveur (signature RSA, audience, émetteur, expiration, nonce à usage unique et preuve navigateur). Aucun compte existant n’est associé automatiquement sur la seule base de l’e-mail. Les comptes Google ont le rôle client ; les restrictions d’accès et d’essai IP/e-mail sont identiques. Les e-mails hors Gmail/Workspace doivent être confirmés par le mécanisme existant avant l’essai.
+
+Tests : node backend/verify-auth.mjs (SQLite réelle, signatures RSA locales, aucun appel Google externe).
