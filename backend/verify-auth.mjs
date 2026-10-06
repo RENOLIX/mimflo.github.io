@@ -27,6 +27,7 @@ assert.equal((await req('/auth/password',{currentPassword:'BonjourMonde42!',newP
 assert.equal((await req('/account',undefined,classic.data.token)).data.user,null);
 const ownerToken='owner-token';sql.prepare('INSERT INTO users(id,email,email_key,password_hash,first_name,last_name,created_at,role) VALUES (?,?,?,?,?,?,?,?)').run('owner','owner@example.com','owner@example.com',await hashPassword('BonjourMonde42!'),'Owner','QA',Date.now(),'owner');sql.prepare('INSERT INTO auth_sessions VALUES (?,?,?)').run(await digest(ownerToken),'owner',Date.now()+60000);
 assert.equal((await req('/admin/action',{action:'createAccount',email:'admin@example.com',firstName:'Admin',lastName:'QA',password:'aaaaaaaaaaaa'},ownerToken)).status,400);
+assert.equal((await req('/account',undefined,ownerToken)).data.emailDeliveryEnabled,false);
 assert.equal((await req('/auth/google/config')).data.enabled,false);
 assert.equal((await req('/auth/google/challenge',{mode:'login',proof:crypto.randomUUID()+crypto.randomUUID()})).status,503);
 const clientId='12345-test.apps.googleusercontent.com';assert.equal((await req('/admin/action',{action:'google',clientId},ownerToken)).status,200);

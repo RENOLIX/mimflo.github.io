@@ -1,0 +1,6 @@
+'use client';
+import {Home,ArrowRight,BookOpen,CheckCircle2} from 'lucide-react';
+import {Button} from '@/components/ui/button';
+export default function MemberWelcome({name,go}:{name:string;go:(view:string)=>void}){
+ return <section className="member-welcome"><div className="card welcome-success"><span className="welcome-success-icon"><CheckCircle2 size={28}/></span><span className="eyebrow">VOTRE COMPTE EST CRÉÉ</span><h1>Bienvenue chez MimFlo, {name} !</h1><p>Votre voix a de belles choses à dire. Retrouvez vos lectures, vos notes et votre progression dans votre espace personnel.</p><Button className="btn secondary" onClick={()=>go('accueil')}><Home size={18}/>Accéder à l’accueil</Button></div><article className="card welcome-subscription"><div><span className="eyebrow">PRÊT À PASSER À L’ACTION ?</span><h2>Choisissez votre rythme.<br/>Faites progresser votre français.</h2><p>5, 10 ou 15 jours de préparation : découvrez nos packs pour travailler votre prononciation, votre fluidité et votre expression orale.</p><Button className="btn" onClick={()=>go('packs')}>Découvrir les abonnements<ArrowRight size={18}/></Button></div><span className="welcome-book-icon" aria-hidden="true"><BookOpen size={52}/></span></article></section>;
+}
