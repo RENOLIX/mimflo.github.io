@@ -65,3 +65,6 @@ Le bouton Google est masqué tant que le client n’est pas configuré. Un compt
 Tests : node backend/verify-auth.mjs (SQLite réelle, signatures RSA locales, aucun appel Google externe).
 
 La durée maximale est calculée depuis le texte du passage : 120 mots/minute, plus 50 % et une minute pour les pauses, arrondie à la minute (minimum 3, maximum 10 minutes). Le serveur recalcule cette limite ; le client ne peut pas la modifier. Le budget quotidien réserve aussi 6 000 secondes audio pour tout le site, y compris les échecs, afin de conserver la marge du quota gratuit. Les anciennes réservations comptent 120 secondes chacune. L’écoute utilise les voix françaises du navigateur, avec un choix de voix et de vitesse, pour le passage ou tout l’article.
+
+### Messagerie LWS MimFlo
+Le serveur peut envoyer directement par SMTP SSL (port 465) via mail01.lwspanel.com, avec contact@mimflo.com comme utilisateur et expéditeur. Le mot de passe doit être ajouté comme secret SMTP_PASSWORD du projet Cloudflare Pages, jamais dans le dépôt ni dans le navigateur des clients. Le propriétaire peut lancer un test depuis Administration → Réglages. Une acceptation SMTP ne prouve pas la réception : vérifier la boîte et les indésirables. Les échecs ne bloquent pas la création du compte et ne confirment jamais automatiquement une adresse. Resend reste une solution de secours si configuré.

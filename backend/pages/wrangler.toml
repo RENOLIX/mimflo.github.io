@@ -3,6 +3,9 @@ pages_build_output_dir = "../../.qa/pages"
 compatibility_date = "2026-05-22"
 
 [vars]
+SMTP_HOST = "mail01.lwspanel.com"
+SMTP_USER = "contact@mimflo.com"
+MAIL_FROM = "contact@mimflo.com"
 ALLOWED_ORIGIN = "https://renolix.github.io"
 AI_ENABLED = "true"
 
