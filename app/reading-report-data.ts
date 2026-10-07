@@ -47,8 +47,8 @@ export function wordFeedback(word:ReportWord){
  const missing=word.phones.filter(p=>p.status==='missing');
  if(word.status==='missing')return 'Les sons de ce mot n’ont pas été reconnus. Vérifiez que vous l’avez lu puis réécoutez votre voix.';
  const different=word.phones.find(p=>p.status==='different');
- if(different)return `Pour /${different.expected}/, le modèle a détecté /${different.heard}/. Écoutez ce son et répétez le mot lentement.`;
- if(missing.length)return `${missing.length===1?'Le son':'Les sons'} ${[...new Set(missing.map(p=>'/'+p.expected+'/'))].join(', ')} ${missing.length===1?'n’a pas été reconnu':'n’ont pas été reconnus'}. Comparez avec le modèle audio.`;
+ if(different)return `Pour /${different.expected}/, le son /${different.heard}/ a été repéré. Écoutez ce son et répétez le mot lentement.`;
+ if(missing.length)return `${missing.length===1?'Le son':'Les sons'} ${[...new Set(missing.map(p=>'/'+p.expected+'/'))].join(', ')} ${missing.length===1?'n’a pas été reconnu':'n’ont pas été reconnus'}. Comparez avec la lecture de référence.`;
  const weak=word.phones.find(p=>(p.confidence??0)<55);
- return weak?`Confiance acoustique faible pour /${weak.expected}/. Réécoutez le mot ; le microphone ou le modèle peut aussi expliquer cet écart.`:'Écoutez le mot puis répétez-le dans sa phrase.';
+ return weak?`Le son /${weak.expected}/ est à réécouter. Répétez le mot dans un endroit calme : la qualité de l’enregistrement peut aussi expliquer cet écart.`:'Écoutez le mot puis répétez-le dans sa phrase.';
 }

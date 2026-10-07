@@ -8,7 +8,7 @@ import {audioToWav} from './audio-analysis';
 import {localPronunciation,cancelLocalPronunciation} from './local-pronunciation';
 import AnalysisLoadingOverlay from './analysis-loading-overlay';
 export const isPhonetic=(a:any)=>a?.kind==='phonetic-experimental';
-export function assessmentLabel(a:any){return isPhonetic(a)?'indice phonétique expérimental':a?.kind==='pronunciation'?'prononciation':'fidélité au passage'}
+export function assessmentLabel(a:any){return isPhonetic(a)?'repérage des sons':a?.kind==='pronunciation'?'prononciation':'fidélité au passage'}
 export {ReadingAnalysis} from './reading-report';
 export default function ReadingAiPanel({articleId,reference,blob,seconds,maxSeconds,saved,recording,passageIndex,onSaved,onBusy,onRetry}:{articleId:string;reference:string;blob:Blob|null;seconds:number;maxSeconds:number;saved:boolean;recording:boolean;passageIndex:number;onSaved:(result:any)=>void|Promise<void>;onBusy:(busy:boolean)=>void;onRetry?:()=>void}){
  const [consent,setConsent]=useState(false),[busy,setBusy]=useState(false),[saving,setSaving]=useState(false),[message,setMessage]=useState(''),[result,setResult]=useState<any>(null),[job,setJob]=useState('');
@@ -37,7 +37,7 @@ export default function ReadingAiPanel({articleId,reference,blob,seconds,maxSeco
   finally{if(isCurrent()){setBusy(false);setSaving(false);onBusy(false)}}
  }
  function cancelAnalysis(){if(saving)return;operation.current++;cancelLocalPronunciation();setBusy(false);setSaving(false);onBusy(false);setMessage('Analyse annulée. Votre enregistrement reste disponible.')}
- return <section className="reading-ai-panel">{busy&&<AnalysisLoadingOverlay canCancel={!saving} onCancel={cancelAnalysis}/>}<div className="reading-ai-heading"><Sparkles/><div><h3>Analyse de votre lecture</h3><p>Découvrez les sons à travailler et les conseils adaptés à votre passage.</p></div></div>
+ return <section className="reading-ai-panel">{busy&&<AnalysisLoadingOverlay canCancel={!saving} onCancel={cancelAnalysis}/>}<div className="reading-ai-heading"><Sparkles/><div><h3>Analyse de votre lecture</h3><p>Découvrez les points à améliorer dans votre lecture et recevez des conseils personnalisés.</p></div></div>
   <label className="check-label"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} disabled={busy||saved||recording}/>J’autorise l’analyse automatique de cette lecture. Les résultats sont sauvegardés dans mon espace ; mon audio reste sur cet appareil.</label>
   <Button className="btn sage" onClick={analyse} disabled={!blob||seconds<3||seconds>maxSeconds||!consent||busy||saved||recording}>{result?<Check/>:<Sparkles/>}{result?'Analyse sauvegardée':busy?'Analyse de votre lecture…':prepared.current?'Réessayer la sauvegarde':'Analyser et sauvegarder ma lecture'}</Button>
   {!blob&&<p className="muted small">Choisissez un passage puis enregistrez votre lecture pour commencer.</p>}
