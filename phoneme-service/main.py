@@ -42,3 +42,4 @@ def assess(payload: AssessRequest) -> dict[str, Any]:
     # inference implementation must be installed before enabling this flag.
     raise HTTPException(HTTPStatus.NOT_IMPLEMENTED, "Le moteur français validé doit être installé avant activation.")
 
+
