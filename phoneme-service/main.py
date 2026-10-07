@@ -8,7 +8,8 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="MimFlo French pronunciation assessment", version="0.1.0")\nMODEL_ID = os.getenv("MIMFLO_MODEL_ID", "facebook/wav2vec2-lv-60-espeak-cv-ft")
+app = FastAPI(title="MimFlo French pronunciation assessment", version="0.1.0")
+MODEL_ID = os.getenv("MIMFLO_MODEL_ID", "facebook/wav2vec2-lv-60-espeak-cv-ft")
 
 class AssessRequest(BaseModel):
     audio: str = Field(min_length=16)
