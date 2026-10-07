@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="MimFlo French pronunciation assessment", version="0.1.0")
+app = FastAPI(title="MimFlo French pronunciation assessment", version="0.1.0")\nMODEL_ID = os.getenv("MIMFLO_MODEL_ID", "facebook/wav2vec2-lv-60-espeak-cv-ft")
 
 class AssessRequest(BaseModel):
     audio: str = Field(min_length=16)
@@ -23,7 +23,7 @@ def model_ready() -> bool:
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-    return {"ok": True, "modelReady": model_ready(), "language": "fr-FR"}
+    return {"ok": True, "modelReady": model_ready(), "language": "fr-FR", "model": MODEL_ID}
 
 
 @app.post("/assess")
@@ -41,3 +41,4 @@ def assess(payload: AssessRequest) -> dict[str, Any]:
     # Deliberately no heuristic fallback: the validated OpenPronounce-compatible
     # inference implementation must be installed before enabling this flag.
     raise HTTPException(HTTPStatus.NOT_IMPLEMENTED, "Le moteur français validé doit être installé avant activation.")
+
