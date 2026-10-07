@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import {wavSamples,phonemeTokens,logSoftmaxRows,greedyPhones,alignPhones,ctcAlign,anchoredCtc,acousticAssessment,vocalTiming} from '../public/phonetics/core.mjs';
+const vocab={'<pad>':0,b:1,a:2,u:3,'ɑ̃':4},labels=['<pad>','b','a','u','ɑ̃'];
+assert.deepEqual(phonemeTokens('ˈbɑ̃',vocab).map(p=>p.id),[1,4],'Nasal vowel is one model token');
+function wav(){const b=new Uint8Array(32000+56),v=new DataView(b.buffer),s=(o,t)=>b.set(new TextEncoder().encode(t),o);s(0,'RIFF');v.setUint32(4,b.length-8,true);s(8,'WAVE');s(12,'JUNK');v.setUint32(16,4,true);s(24,'fmt ');v.setUint32(28,16,true);v.setUint16(32,1,true);v.setUint16(34,1,true);v.setUint32(36,16000,true);v.setUint16(46,16,true);s(48,'data');v.setUint32(52,32000,true);v.setInt16(56,16384,true);return b}
+assert.equal(wavSamples(wav()).length,16000);assert.equal(wavSamples(wav())[0],.5,'WAV extensions do not consume sample bytes');assert.throws(()=>wavSamples(wav().subarray(0,200)),/incomplet/);
+assert.throws(()=>vocalTiming(new Float32Array(48000)),/silencieux/);
+const sequence=[0,1,1,0,2,2,0,1,1,0],width=5,frames=sequence.length;
+const logits=new Float32Array(frames*width).fill(-8);sequence.forEach((p,t)=>logits[t*width+p]=8);
+const logp=logSoftmaxRows(logits,frames,width),heard=greedyPhones(logp,frames,width,labels);
+assert.deepEqual(heard.map(p=>p.id),[1,2,1]);
+const repeats=ctcAlign(logp,frames,width,[1,1]);assert.ok(repeats&&repeats[0].endFrame<repeats[1].startFrame,'Repeated CTC labels need a blank');
+const samples=Float32Array.from({length:16000},(_,i)=>Math.sin(i*.04)*.12);
+const assess=expected=>acousticAssessment({logp,frames,width,expected:expected.map(id=>({id,phone:labels[id],word:'test'})),labels,samples,reference:'test'}).analysis;
+const right=assess([1,2,1]),wrong=assess([3,3,3]),partial=assess([1,2,1,3,3,3]);
+assert.ok(right.score>wrong.score+50,'Acoustic score changes with expected phones');assert.ok(partial.score<=right.score/2+1,'Unread sounds do not disappear from denominator');
+assert.equal(partial.phonemes.filter(p=>p.status==='missing').every(p=>p.start===null&&p.confidence===null),true,'Omissions have no fabricated interval or probability');
+assert.equal(right.accentScore,null);assert.equal(right.fluencyScore,null);assert.equal(right.calibrated,false);
+assert.equal(alignPhones([{id:1}],[{id:2}])[0].status,'different');
+const longFrames=30000,longLogp=new Float32Array(longFrames*3).fill(-20),longHeard=[],longExpected=[];
+for(let t=0;t<longFrames;t++)longLogp[t*3]=0;
+for(let i=0;i<2900;i++){const t=i*10+4,id=i%2+1;longLogp[t*3]=-20;longLogp[t*3+id]=0;longHeard.push({id,startFrame:t,endFrame:t+1});longExpected.push({id})}
+const longSpans=anchoredCtc(longLogp,longFrames,3,longExpected.map((_,i)=>({expectedIndex:i,heardIndex:i})),longExpected,longHeard);
+assert.equal(longSpans.length,2900);assert.ok(longSpans.every(s=>s?.frames.length),'A ten-minute alignment remains bounded and complete');
+console.log('PASS: WAV chunks, nasal tokens, silence, CTC repeated sounds, acoustic discrimination, partial readings and uncalibrated metrics.');
