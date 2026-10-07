@@ -1,5 +1,5 @@
 import createPiperPhonemize from './vendor/piper_phonemize.mjs';
-import { phonemeTokens, alignPhones } from './core.mjs';
+import { phonemeTokens, alignPhones } from './core.mjs?v=6';
 let instance, output = [];
 export async function frenchPhones(reference, vocab, options = {}) {
   if (!instance) instance = await createPiperPhonemize({
@@ -15,11 +15,11 @@ export async function frenchPhones(reference, vocab, options = {}) {
   catch (e) { if (e?.status !== 0) {console.error('French phonemizer', e);throw Error('La conversion phonétique du passage a échoué.');} }
   if (output.length !== words.length + 1) throw Error('Conversion française incomplète.');
   const full = phonemeTokens(output[0].phonemes.join(''), vocab);
-  const isolated = output.slice(1).flatMap((line, i) => phonemeTokens(line.phonemes.join(''), vocab).map(p => ({ ...p, word: words[i] })));
-  const pairs = alignPhones(full, isolated); let lastWord = words[0];
+  const isolated = output.slice(1).flatMap((line, i) => phonemeTokens(line.phonemes.join(''), vocab).map(p => ({ ...p, word: words[i], wordIndex: i })));
+  const pairs = alignPhones(full, isolated); let lastWord = words[0], lastIndex = 0;
   for (const pair of pairs) {
-    if (pair.heardIndex !== null) lastWord = isolated[pair.heardIndex].word;
-    if (pair.expectedIndex !== null) full[pair.expectedIndex].word = lastWord;
+    if (pair.heardIndex !== null) { lastWord = isolated[pair.heardIndex].word; lastIndex = isolated[pair.heardIndex].wordIndex; }
+    if (pair.expectedIndex !== null) { full[pair.expectedIndex].word = lastWord; full[pair.expectedIndex].wordIndex = lastIndex; }
   }
   return full;
 }

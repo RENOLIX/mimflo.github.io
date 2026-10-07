@@ -63,9 +63,22 @@ Elles ne peuvent pas devenir phonétiques sans réanalyser leur audio original.
 
 ## Vérification
 
+Le bilan présente un indice circulaire, la complétude des sons attendus, la
+proportion de sons détectés identiques au passage, le rythme mesuré, le passage
+coloré et les mots à retravailler. La fluidité reste sans note : ses pauses sont
+mesurées, mais elles ne constituent pas un score calibré. Les couleurs reflètent
+la reconnaissance acoustique, pas un niveau CECRL. Chaque occurrence de mot est
+indexée dans les nouvelles analyses ; les anciennes séances sans ces index
+restent lisibles sans inventer des mesures pour les répétitions ambiguës.
+
+Le modèle de lecture audio utilise la synthèse française du navigateur. Il ne
+s’agit pas d’un enregistrement d’un locuteur natif. Les boutons de réécoute et
+de nouvelle lecture ne modifient pas les quotas d’analyse.
+
 ```powershell
 node scripts/verify-phonetics.mjs
 node backend/verify-phonetics.mjs
+node scripts/verify-reading-report.mjs
 $env:MIMFLO_MEMBER_API='https://mimflo-members.pages.dev'
 npx vite build --config vite.pages.config.ts
 ```

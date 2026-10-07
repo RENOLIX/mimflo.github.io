@@ -160,9 +160,9 @@ export function acousticAssessment({ logp, frames, width, expected, labels, samp
   const frameSeconds = .02;
   let cursor = 0;
   const phones = alignment.map(pair => {
-    if (pair.expectedIndex === null) return { expected: '', heard: heard[pair.heardIndex].phone, word: null, status: 'added', confidence: null, gop: null, start: Math.round(heard[pair.heardIndex].startFrame * 20) / 1000, end: Math.round(heard[pair.heardIndex].endFrame * 20) / 1000 };
+    if (pair.expectedIndex === null) return { expected: '', heard: heard[pair.heardIndex].phone, word: null, wordIndex: null, status: 'added', confidence: null, gop: null, start: Math.round(heard[pair.heardIndex].startFrame * 20) / 1000, end: Math.round(heard[pair.heardIndex].endFrame * 20) / 1000 };
     const target = expected[pair.expectedIndex];
-    if (pair.heardIndex === null) return { expected: target.phone, heard: '', word: target.word ?? null, status: 'missing', confidence: null, gop: null, start: null, end: null };
+    if (pair.heardIndex === null) return { expected: target.phone, heard: '', word: target.word ?? null, wordIndex: target.wordIndex ?? null, status: 'missing', confidence: null, gop: null, start: null, end: null };
     const detected = heard[pair.heardIndex], forced = spans?.[cursor++];
     // Use observed boundaries when forced alignment fails; report this in the method.
     // A forced path may slide onto a neighbouring sound when words were misread.
@@ -175,7 +175,7 @@ export function acousticAssessment({ logp, frames, width, expected, labels, samp
       for (let c = 1; c < width; c++) if (c !== target.id) alternative = Math.max(alternative, logp[at + c]);
       posterior += Math.exp(logp[at + target.id]); margin += logp[at + target.id] - alternative;
     }
-    return { expected: target.phone, heard: detected.phone, word: target.word ?? null, status: pair.status, confidence: Math.round(posterior / usedFrames.length * 100), gop: Math.round(margin / usedFrames.length * 100) / 100, start: Math.round(detected.startFrame * frameSeconds * 100) / 100, end: Math.min(seconds, Math.round(detected.endFrame * frameSeconds * 100) / 100) };
+    return { expected: target.phone, heard: detected.phone, word: target.word ?? null, wordIndex: target.wordIndex ?? null, status: pair.status, confidence: Math.round(posterior / usedFrames.length * 100), gop: Math.round(margin / usedFrames.length * 100) / 100, start: Math.round(detected.startFrame * frameSeconds * 100) / 100, end: Math.min(seconds, Math.round(detected.endFrame * frameSeconds * 100) / 100) };
   });
   const measured = phones.filter(p => p.expected && p.confidence !== null);
   const matched = phones.filter(p => p.status === 'match').length;

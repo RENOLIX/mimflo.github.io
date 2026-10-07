@@ -1,6 +1,6 @@
 import { AutoModelForCTC, AutoProcessor, env } from './vendor/transformers.min.js';
-import { MODEL, REVISION, wavSamples, logSoftmaxRows, acousticAssessment, vocalTiming } from './core.mjs';
-import { frenchPhones } from './g2p.mjs';
+import { MODEL, REVISION, wavSamples, logSoftmaxRows, acousticAssessment, vocalTiming } from './core.mjs?v=6';
+import { frenchPhones } from './g2p.mjs?v=6';
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 env.backends.onnx.wasm.numThreads = 1;

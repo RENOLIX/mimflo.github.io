@@ -4,7 +4,7 @@ let rejectActive:(()=>void)|null=null;
 export function cancelLocalPronunciation(){const reject=rejectActive;rejectActive=null;worker?.terminate();worker=null;reject?.();}
 export function localPronunciation(wav:Uint8Array,reference:string,_seconds:number,onProgress?:(message:string)=>void):Promise<LocalResult>{
  if(!window.Worker||!window.WebAssembly)return Promise.reject(new Error('L’analyse phonétique nécessite un navigateur récent avec WebAssembly.'));
- if(!worker)worker=new Worker('/phonetics/worker.mjs?v=5',{type:'module'});
+ if(!worker)worker=new Worker('/phonetics/worker.mjs?v=6',{type:'module'});
  const active=worker,id=crypto.randomUUID();
  return new Promise((resolve,reject)=>{
   function cleanup(){active.removeEventListener('message',message);active.removeEventListener('error',error);rejectActive=null}
