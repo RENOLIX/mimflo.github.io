@@ -60,8 +60,8 @@ async function route(request:Request,env:Env){const url=new URL(request.url),pat
   const previous=await env.DB.prepare('SELECT * FROM analysis_jobs WHERE id=? AND user_id=?').bind(jobId,user.id).first<Row>();
   if(previous){if(previous.article_id!==b.articleId||previous.passage_index!==b.passageIndex)fail(409,'Cette analyse appartient à une autre lecture.');if(previous.status==='completed')return JSON.parse(previous.result);if(previous.status==='processing')fail(409,'L’analyse est encore en cours. Réessayez dans un instant pour consulter son résultat.');fail(409,'Cette analyse a échoué. Relancez une nouvelle analyse.');}
   const access=await activeAccess(env,user),a=(await allowedArticles(env,user)).find(a=>a.id===b.articleId);if(!a)fail(403,'Cet article n’est pas inclus dans votre accès actif.');
-  const passages=readingPassages(a.paragraphs,30);if(!Number.isInteger(b.passageIndex)||b.passageIndex<0||b.passageIndex>=passages.length)fail(400,'Choisissez un passage valide.');
-  let audio;try{audio=validateAudio(audioBytes!,30)}catch(e){fail(400,(e as Error).message)}
+  const passages=readingPassages(a.paragraphs,access.type==='trial'?30:600);if(!Number.isInteger(b.passageIndex)||b.passageIndex<0||b.passageIndex>=passages.length)fail(400,'Choisissez un passage valide.');
+  let audio;try{audio=validateAudio(audioBytes!,access.type==='trial'?30:readingTimeLimit(passages[b.passageIndex]))}catch(e){fail(400,(e as Error).message)}
   await rate(request,env,'analysis',10);
   const day=new Date().toISOString().slice(0,10),month=day.slice(0,7)+'%';
   await env.DB.prepare("UPDATE analysis_jobs SET status='failed' WHERE status='processing' AND created_at<?").bind(now()-300000).run();
