@@ -9,6 +9,9 @@ MAIL_FROM = "contact@mimflo.com"
 ALLOWED_ORIGIN = "https://mimflo.com"
 AI_ENABLED = "true"
 
+[ai]
+binding = "AI"
+
 
 [[d1_databases]]
 binding = "DB"

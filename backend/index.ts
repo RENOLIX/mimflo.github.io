@@ -1,4 +1,3 @@
-import {assessAzure,azureConfigured} from './azure-speech';
 import {mailConfigured,sendMail} from './mail';
 import {verifyGoogleToken} from './google-auth';
 import {validPassword,passwordRequirements} from '../app/password-rules';
@@ -7,7 +6,8 @@ import {readingDuration,readingTimeLimit,MAX_READING_SECONDS,DAILY_AUDIO_SECONDS
 import {readingPassages} from '../app/reading-passages';
 import {countryCodes} from '../app/countries';
 import {readingAssessment,validateAudio} from './reading-analysis';
-type Env={AZURE_SPEECH_KEY?:string;AZURE_SPEECH_REGION?:string;DB:D1Database;ALLOWED_ORIGIN:string;IP_PEPPER:string;RESEND_API_KEY?:string;MAIL_FROM?:string;SMTP_HOST?:string;SMTP_USER?:string;SMTP_PASSWORD?:string;DEV_MODE?:string;AI_ENABLED?:string;AI?:{run:(model:string,input:any)=>Promise<any>}};
+import {assessPhonemes,phonemeConfigured} from './phoneme-assessment';
+type Env={DB:D1Database;ALLOWED_ORIGIN:string;IP_PEPPER:string;RESEND_API_KEY?:string;MAIL_FROM?:string;SMTP_HOST?:string;SMTP_USER?:string;SMTP_PASSWORD?:string;DEV_MODE?:string;AI_ENABLED?:string;AI?:{run:(model:string,input:any)=>Promise<any>};PHONEME_API_URL?:string;PHONEME_API_TOKEN?:string};
 type Row=Record<string,any>;
 const packs:Record<string,number>={sprint:5,intensif:10,performance:15};
 const empty={user:null,profile:null,notes:[],sessions:[],articles:[],requests:[],entitlements:[],paymentInstructions:''};
@@ -52,9 +52,9 @@ async function route(request:Request,env:Env){const url=new URL(request.url),pat
  if(path==='/auth/login'&&method==='POST'){await rate(request,env,'login',20);const u=await env.DB.prepare('SELECT * FROM users WHERE email_key=? AND disabled=0').bind(emailKey(text(b.email,254))).first<Row>();const valid=await checkPassword(typeof b.password==='string'&&b.password.length<=128?b.password:'',u?.password_hash||'pbkdf2:100000:unknown:invalid');if(!u||!valid)fail(401,'E-mail ou mot de passe incorrect.');return login(env,u);}
  if(path==='/auth/verify'&&method==='POST'){await rate(request,env,'verify',15);const hash=await digest(text(b.token,100));const v=await env.DB.prepare('SELECT * FROM verification_tokens WHERE token_hash=? AND expires_at>?').bind(hash,now()).first<Row>();if(!v)fail(400,'Lien expiré ou invalide.');await env.DB.batch([env.DB.prepare('UPDATE users SET email_verified=1 WHERE id=?').bind(v.user_id),env.DB.prepare('DELETE FROM verification_tokens WHERE user_id=?').bind(v.user_id)]);return {ok:true};}
  if(!user)fail(401,'Connectez-vous ou inscrivez-vous pour accéder à votre espace.');
- if(path==='/analysis/status'&&method==='GET')return {enabled:env.AI_ENABLED==='true'&&azureConfigured(env),provider:'azure',maxSeconds:30,passageWords:30,adaptiveDuration:false,dailyAudioSeconds:DAILY_AUDIO_SECONDS,dailyLimit:50,userDailyLimit:5};
+ if(path==='/analysis/status'&&method==='GET')return {enabled:env.AI_ENABLED==='true'&&(!!env.AI||phonemeConfigured(env)),provider:phonemeConfigured(env)?'wav2vec2-xls-r':'whisper',maxSeconds:600,passageWords:30,adaptiveDuration:true,dailyAudioSeconds:DAILY_AUDIO_SECONDS,dailyLimit:50,userDailyLimit:5};
  if(path==='/analysis'&&method==='POST'){
-  if(env.AI_ENABLED!=='true'||!azureConfigured(env))fail(503,'L’analyse IA est en cours d’activation. Votre lecture peut toujours être sauvegardée.');
+  if(env.AI_ENABLED!=='true'||(!env.AI&&!phonemeConfigured(env)))fail(503,'L’analyse IA est en cours d’activation. Votre lecture peut toujours être sauvegardée.');
   if(!b.consent)fail(400,'Autorisez l’analyse de votre enregistrement.');
   const jobId=text(b.id,36);if(!/^[a-f0-9-]{36}$/.test(jobId))fail(400,'Identifiant d’analyse invalide.');
   const previous=await env.DB.prepare('SELECT * FROM analysis_jobs WHERE id=? AND user_id=?').bind(jobId,user.id).first<Row>();
@@ -67,7 +67,13 @@ async function route(request:Request,env:Env){const url=new URL(request.url),pat
   await env.DB.prepare("UPDATE analysis_jobs SET status='failed' WHERE status='processing' AND created_at<?").bind(now()-300000).run();
   try{const reservation=await env.DB.prepare("INSERT INTO analysis_jobs(id,user_id,article_id,access_type,status,day,created_at,passage_index,audio_seconds) SELECT ?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM analysis_jobs WHERE day=?)<50 AND (SELECT COUNT(*) FROM analysis_jobs WHERE day=? AND user_id=?)<5 AND (SELECT COALESCE(SUM(audio_seconds),0) FROM analysis_jobs WHERE day=?)+?<=? AND (SELECT COALESCE(SUM(audio_seconds),0) FROM analysis_jobs WHERE day LIKE ?)+?<=14400 AND NOT EXISTS (SELECT 1 FROM analysis_jobs WHERE status='processing')").bind(jobId,user.id,a.id,access.type,'processing',day,now(),b.passageIndex,Math.ceil(audio.seconds),day,day,user.id,day,Math.ceil(audio.seconds),DAILY_AUDIO_SECONDS,month,Math.ceil(audio.seconds)).run();if(!reservation.meta.changes){const monthly=await env.DB.prepare('SELECT COALESCE(SUM(audio_seconds),0) seconds FROM analysis_jobs WHERE day LIKE ?').bind(month).first<Row>();if(Number(monthly?.seconds)+Math.ceil(audio.seconds)>14400)fail(429,'Le quota audio gratuit du mois est atteint. Réessayez le mois prochain.');if(await env.DB.prepare("SELECT id FROM analysis_jobs WHERE status='processing' LIMIT 1").first())fail(409,'Une évaluation est en cours. Réessayez dans un instant.');const used=await env.DB.prepare('SELECT COUNT(*) total,COALESCE(SUM(audio_seconds),0) audio_seconds FROM analysis_jobs WHERE day=?').bind(day).first<Row>();fail(429,used?.total>=50||Number(used?.audio_seconds)+Math.ceil(audio.seconds)>DAILY_AUDIO_SECONDS?'Le quota gratuit du jour est atteint. Les analyses reprennent à 00 h UTC.':'Vous avez utilisé vos cinq analyses gratuites du jour. Revenez demain.');}}catch(e){if(e instanceof HttpError)throw e;fail(409,'Une analyse est déjà en cours ou votre analyse offerte a déjà été utilisée.');}
   try{
-   const evaluation=await assessAzure(env,audio.bytes,passages[b.passageIndex]);
+   let evaluation;
+   if(phonemeConfigured(env)) evaluation=await assessPhonemes(env,audio.bytes,passages[b.passageIndex]);
+   else {
+    const result=await env.AI!.run('@cf/openai/whisper-large-v3-turbo',{audio:{body:new Blob([audio.bytes as BlobPart]).stream(),contentType:'audio/wav'},task:'transcribe',language:'fr',vad_filter:true,condition_on_previous_text:false});
+    const transcript=text(result?.text,16000);if(!transcript)throw new Error('NO_SPEECH');
+    evaluation={transcript,assessment:readingAssessment(passages[b.passageIndex],transcript,audio.seconds)};
+   }
    const transcript=text(evaluation.transcript,16000),assessment={...evaluation.assessment,passage:b.passageIndex+1},seconds=Math.round(audio.seconds),response={ok:true,id:jobId,transcript,analysis:assessment,coverage:assessment.score,seconds,passageIndex:b.passageIndex};
    // Trial uniqueness is also enforced on readings; inference is reserved before running.
    await env.DB.batch([...(access.type==='trial'?[env.DB.prepare("DELETE FROM readings WHERE user_id=? AND access_type='trial' AND analysis IS NULL").bind(user.id)]:[]),env.DB.prepare('INSERT INTO readings(id,user_id,article_id,seconds,transcript,coverage,access_type,created_at,analysis) VALUES (?,?,?,?,?,?,?,?,?)').bind(jobId,user.id,a.id,seconds,transcript,assessment.score,access.type,now(),JSON.stringify(assessment)),env.DB.prepare("UPDATE analysis_jobs SET status='completed',result=? WHERE id=?").bind(JSON.stringify(response),jobId)]);
@@ -102,11 +108,11 @@ async function route(request:Request,env:Env){const url=new URL(request.url),pat
  }
  if(path.startsWith('/admin')){if(!['admin','owner'].includes(user.role))fail(403,'Accès administrateur requis.');
   if(path==='/admin/ai-check'&&method==='POST'){
-   if(user.role!=='owner')fail(403,'Vérification réservée au propriétaire.');if(env.AI_ENABLED!=='true'||!azureConfigured(env))fail(503,'Évaluation désactivée.');
+   if(user.role!=='owner')fail(403,'Vérification réservée au propriétaire.');if(env.AI_ENABLED!=='true'||(!env.AI&&!phonemeConfigured(env)))fail(503,'Évaluation désactivée.');
    if(!b.consent||typeof b.audio!=='string'||b.audio.length>427000)fail(400,'Échantillon de contrôle et consentement requis.');
    let audio;try{const raw=atob(b.audio),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);audio=validateAudio(bytes);}catch{fail(400,'Échantillon WAV invalide.');}if(audio.seconds>10)fail(400,'Le contrôle est limité à dix secondes.');
    const bucket='ai-check:'+new Date().toISOString().slice(0,10),reserved=await env.DB.prepare('INSERT INTO rate_limits(bucket,count,expires_at) VALUES (?,1,?) ON CONFLICT(bucket) DO UPDATE SET count=count+1 WHERE count<5').bind(bucket,now()+2*86400000).run();if(!reserved.meta.changes)fail(429,'Les cinq contrôles gratuits du jour ont été utilisés.');
-   try{const result=await assessAzure(env,audio.bytes,'Bonjour, nous apprenons le français ensemble.');return {ok:true,transcript:result.transcript,analysis:result.assessment};}catch(e){console.warn('MimFlo AI check failed',e instanceof Error?e.message.slice(0,240):'Unknown failure');fail(503,'Le service d’évaluation ne répond pas au contrôle.');}
+   try{if(phonemeConfigured(env)){const result=await assessPhonemes(env,audio.bytes,'Bonjour, nous apprenons le français ensemble.');return {ok:true,transcript:result.transcript,analysis:result.assessment};}const result=await env.AI!.run('@cf/openai/whisper-large-v3-turbo',{audio:{body:new Blob([audio.bytes as BlobPart]).stream(),contentType:'audio/wav'},task:'transcribe',language:'fr',vad_filter:true,condition_on_previous_text:false});const transcript=text(result?.text,16000);return {ok:true,transcript,analysis:readingAssessment('Bonjour, nous apprenons le français ensemble.',transcript,audio.seconds)};}catch(e){console.warn('MimFlo AI check failed',e instanceof Error?e.message.slice(0,240):'Unknown failure');fail(503,'Le service d’évaluation ne répond pas au contrôle.');}
   }
   if(path==='/admin/media'&&method==='POST'){
    await rate(request,env,'media',60);const match=typeof b.data==='string'?b.data.match(/^data:image\/(webp|png|jpeg);base64,([A-Za-z0-9+/=]+)$/):null;if(!match)fail(400,'Format accepté : JPEG, PNG ou WebP.');let bytes:Uint8Array;try{bytes=Uint8Array.from(atob(match[2]),c=>c.charCodeAt(0));}catch{fail(400,'Image invalide.');}if(bytes.length>1500000||bytes.length<12)fail(413,'L’image doit peser moins de 1,5 Mo après optimisation.');const valid=match[1]==='webp'?String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP':match[1]==='png'?bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71:bytes[0]===255&&bytes[1]===216&&bytes[2]===255;if(!valid)fail(400,'Le contenu de l’image ne correspond pas à son format.');const mid=id();await env.DB.prepare('INSERT INTO media VALUES (?,?,?,?,?,?)').bind(mid,bytes.buffer,'image/'+match[1],text(b.name,160),user.id,now()).run();await audit(env,user,'upload-image',mid);return {id:mid,url:await mediaUrl(env,request,mid),name:text(b.name,160)};
