@@ -1,8 +1,10 @@
 'use client';
-import {useEffect,useId,useRef,useState} from 'react';
+import {useId,useRef,useState} from 'react';
 import {Activity,AlertCircle,Check,ChevronDown,Headphones,Lightbulb,RotateCcw,ShieldCheck,Square,Volume2,Sparkles} from 'lucide-react';
 import {reportData,wordFeedback,type ReportWord} from './reading-report-data';
 import './reading-report.css';
+import {useArticleListening} from './use-article-listening';
+import LanguagePlacement from './language-placement';
 const decimal=(value:number)=>Number(value||0).toLocaleString('fr-FR',{maximumFractionDigits:1});
 const isPhonetic=(analysis:any)=>analysis?.kind==='phonetic-experimental';
 function ScoreRing({score,label}:{score:number|null;label:string}){
@@ -14,23 +16,10 @@ function Metric({label,value,description,tone='rose'}:{label:string;value:number
 }
 export function ReadingAnalysis({analysis,title,textLevel,onRetry}:{analysis:any;title?:string;textLevel?:string;onRetry?:()=>void}){
  const data=reportData(analysis),phonetic=isPhonetic(analysis),score=data.score;
- const [selected,setSelected]=useState<number|null>(null),[playing,setPlaying]=useState(false),[speechError,setSpeechError]=useState('');
+ const [selected,setSelected]=useState<number|null>(null),[speechError,setSpeechError]=useState('');
  const [showAll,setShowAll]=useState(false),[phoneOpen,setPhoneOpen]=useState(false);
- const generation=useRef(0),ownsSpeech=useRef(false),currentSpeech=useRef(''),panelId=useId();
- useEffect(()=>()=>{generation.current++;if(ownsSpeech.current)window.speechSynthesis?.cancel()},[]);
- function speak(text:string,stopIfPlaying=false){
-  setSpeechError('');
-  if(!window.speechSynthesis){setSpeechError('L’écoute nécessite une voix française disponible dans votre navigateur.');return;}
-  const synthesis=window.speechSynthesis,wasPlaying=playing;
-  generation.current++;synthesis.cancel();ownsSpeech.current=false;setPlaying(false);
-  if(wasPlaying&&(stopIfPlaying||currentSpeech.current===text))return;
-  currentSpeech.current=text;
-  const current=generation.current,voices=synthesis.getVoices(),voice=voices.find(v=>v.lang==='fr-FR')||voices.find(v=>v.lang.startsWith('fr'));
-  const words=text.split(/\s+/).filter(Boolean),chunks:string[]=[];for(let i=0;i<words.length;i+=25)chunks.push(words.slice(i,i+25).join(' '));
-  let index=0;ownsSpeech.current=true;setPlaying(true);
-  const next=()=>{if(current!==generation.current)return;if(index===chunks.length){setPlaying(false);ownsSpeech.current=false;return;}const utterance=new SpeechSynthesisUtterance(chunks[index++]);utterance.lang='fr-FR';utterance.rate=.85;if(voice)utterance.voice=voice;utterance.onend=next;utterance.onerror=()=>{if(current===generation.current){setPlaying(false);ownsSpeech.current=false;setSpeechError('La voix française est indisponible. Réessayez avec une voix française disponible dans votre navigateur.');}};synthesis.speak(utterance)};
-  if(synthesis.paused)synthesis.resume();next();
- }
+ const currentSpeech=useRef(''),panelId=useId(),listening=useArticleListening(data.reference,setSpeechError),playing=listening.playing;
+ function speak(text:string,stopIfPlaying=false){setSpeechError('');if(playing&&(stopIfPlaying||currentSpeech.current===text)){listening.stop();return;}currentSpeech.current=text;listening.playExpression(text);}
  const tone=(score??0)>=75?'sage':(score??0)>=45?'lavender':'rose';
  const badge=score===null?'Analyse indisponible':score>=75?(phonetic?'Sons bien représentés':'Texte bien représenté'):score>=45?'Continuez à pratiquer':'Une lecture à retravailler';
  const activeWord=selected===null?null:data.words[selected];
@@ -40,7 +29,7 @@ export function ReadingAnalysis({analysis,title,textLevel,onRetry}:{analysis:any
  return <section className={'reading-report tone-'+tone} aria-label="Votre bilan de lecture">
   <header className="report-heading"><span className="report-overline"><Sparkles size={15}/> VOTRE LECTURE, PAS À PAS</span><h3>{phonetic?'Votre bilan de prononciation':'Votre bilan de lecture'}</h3><p>{phonetic?'Les points clés de votre lecture':'Comparaison avec le passage lu'}{analysis?.passage?` · Passage ${analysis.passage}`:''}</p></header>
   <ScoreRing score={score} label={phonetic?'Indice phonétique':'Fidélité au texte'}/><span className="report-status">{badge}</span>
-  <div className="reader-cefr-note"><strong>Niveau du texte : {textLevel||analysis?.referenceLevel||'non renseigné'}</strong><p>Votre niveau oral CECRL (A1 à C2) n’est pas évalué par cette lecture préparée. Il nécessite aussi une évaluation de l’expression spontanée, du vocabulaire et de la grammaire.</p></div>
+  <div className="reader-cefr-note"><strong>Niveau du texte : {textLevel||analysis?.referenceLevel||'non renseigné'}</strong><p>Pour estimer votre niveau personnel de français, complétez les questions de langue et l’expression libre ci-dessous.</p></div><LanguagePlacement/>
   <div className="report-metrics">{phonetic?<><Metric label="Complétude" value={data.completion} description="Sons attendus détectés" tone="sage"/><Metric label="Précision" value={data.precision} description="Sons détectés identiques au passage" tone="lavender"/><Metric label="Fluidité" value={null} description={`${analysis.timing?.pauseCount||0} pauses mesurées · score non calibré`} tone="blue"/><Metric label="Prononciation" value={score} description="Repérage des sons dans votre lecture"/></>:<><Metric label="Fidélité au texte" value={score} description="Comparaison des mots transcrits"/><div className="report-metric blue"><span>Vitesse de lecture</span><strong>{analysis?.wordsPerMinute??'—'}</strong><p>Mots reconnus par minute</p></div></>}</div>
   {phonetic&&<div className="report-counts"><div><strong>{data.recognizedWords}</strong><span>Mots bien reconnus</span></div><div><strong>{data.words.length}</strong><span>Mots de votre lecture</span></div><div><strong>{data.practice.length}</strong><span>Mots à revoir</span></div></div>}
   {data.reference&&<section className="report-passage"><div className="report-section-title"><span>{title||'Votre lecture'}</span><span>{data.words.length} mots</span></div>{phonetic&&<div className="report-legend"><span><i className="recognized"/> Bien reconnu</span><span><i className="uncertain"/> À réécouter</span><span><i className="missing"/> Non reconnu</span></div>}<p className="report-highlighted-text">{data.segments.map((segment,i)=>segment.word&&phonetic?<button type="button" key={i} className={'report-text-word '+segment.word.status+(selected===segment.word.index?' active':'')} onClick={()=>setSelected(selected===segment.word!.index?null:segment.word!.index)} aria-pressed={selected===segment.word.index} aria-controls={panelId} title={segment.word.status==='recognized'?'Sons bien reconnus':segment.word.status==='missing'?'Sons non reconnus':segment.word.status==='unavailable'?'Mesure individuelle indisponible':'Sons à réécouter'}>{segment.text}</button>:<span key={i}>{segment.text}</span>)}</p><p className="report-passage-help">{phonetic?'Touchez un mot pour explorer ses sons. La couleur indique les sons repérés dans votre lecture.':'Ce résultat historique compare la transcription au texte.'}</p>{activeWord&&<div className="report-selected-word" id={panelId}><div><strong>{activeWord.text}</strong><button className="report-word-listen" onClick={()=>speak(activeWord.text)} aria-label={'Écouter '+activeWord.text}><Volume2 size={17}/></button></div><p>{activeWord.status==='recognized'?'Les sons de ce mot ont été bien repérés dans votre lecture.':activeWord.status==='unavailable'?'Cette ancienne analyse ne permet pas de séparer les sons de cette occurrence du mot.':wordFeedback(activeWord)}</p><Phones word={activeWord}/>{activeWord.pause!==null&&<small>Pause mesurée après ce mot : {decimal(activeWord.pause)} s. Une pause de ponctuation peut être naturelle.</small>}</div>}</section>}
