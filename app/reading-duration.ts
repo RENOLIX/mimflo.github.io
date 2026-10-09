@@ -6,5 +6,7 @@ export function readingDuration(text:string){
 
 export const MAX_READING_SECONDS=600;
 export const DAILY_AUDIO_SECONDS=6000;
+export const MAX_ARTICLE_READING_SECONDS=3600;
+export function articleReadingTimeLimit(text:string){return Math.min(MAX_ARTICLE_READING_SECONDS,Math.max(180,Math.ceil(readingDuration(text).words/120*1.5+1)*60));}
 // 50% extra time and one minute for pauses, rounded up to a minute.
 export function readingTimeLimit(text:string){return Math.min(MAX_READING_SECONDS,Math.max(180,Math.ceil((readingDuration(text).words/120*1.5+1))*60));}

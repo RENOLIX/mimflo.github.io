@@ -64,9 +64,34 @@ export function greedyPhones(logp, frames, width, labels, blank = 0) {
   return phones;
 }
 
-export function alignPhones(expected, heard) {
+export function alignPhones(expected, heard, options = {}) {
+  if (options.prefix) {
+    let row = Uint32Array.from({ length: heard.length + 1 }, (_, i) => i), endpoint = 0, best = heard.length;
+    for (let i = 1; i <= expected.length; i++) {
+      const next = new Uint32Array(heard.length + 1); next[0] = i;
+      for (let j = 1; j <= heard.length; j++) next[j] = Math.min(row[j] + 1, next[j - 1] + 1, row[j - 1] + (expected[i - 1].id === heard[j - 1].id ? 0 : 1));
+      if (next[heard.length] < best) { best = next[heard.length]; endpoint = i; }
+      row = next;
+    }
+    return alignPhones(expected.slice(0, endpoint), heard);
+  }
   const n = expected.length, m = heard.length, cols = m + 1;
-  if (n * m > 12000000) throw Error('Ce passage est trop long pour cet appareil.');
+  if (n * m > 12000000) {
+    // Hirschberg traceback keeps long complete articles within bounded memory.
+    const rowCosts = (a, b) => {
+      let row = Uint32Array.from({ length: b.length + 1 }, (_, i) => i);
+      for (let i = 1; i <= a.length; i++) {
+        const next = new Uint32Array(b.length + 1); next[0] = i;
+        for (let j = 1; j <= b.length; j++) next[j] = Math.min(row[j] + 1, next[j - 1] + 1, row[j - 1] + (a[i - 1].id === b[j - 1].id ? 0 : 1));
+        row = next;
+      }
+      return row;
+    };
+    const mid = Math.floor(n / 2), left = rowCosts(expected.slice(0, mid), heard), right = rowCosts(expected.slice(mid).reverse(), [...heard].reverse());
+    let split = 0, best = Infinity;
+    for (let j = 0; j <= m; j++) if (left[j] + right[m - j] < best) { best = left[j] + right[m - j]; split = j; }
+    return [...alignPhones(expected.slice(0, mid), heard.slice(0, split)), ...alignPhones(expected.slice(mid), heard.slice(split)).map(pair => ({ ...pair, expectedIndex: pair.expectedIndex === null ? null : pair.expectedIndex + mid, heardIndex: pair.heardIndex === null ? null : pair.heardIndex + split }))];
+  }
   const costs = new Uint16Array((n + 1) * cols);
   for (let i = 0; i <= n; i++) costs[i * cols] = i;
   for (let j = 0; j <= m; j++) costs[j] = j;
@@ -150,9 +175,22 @@ export function anchoredCtc(logp, frames, width, present, expected, heard) {
   return spans;
 }
 
-export function acousticAssessment({ logp, frames, width, expected, labels, samples, reference }) {
+export function acousticAssessment({ logp, frames, width, expected, labels, samples, reference, partial = false }) {
   const seconds = samples.length / 16000, timing = vocalTiming(samples);
-  const heard = greedyPhones(logp, frames, width, labels), alignment = alignPhones(expected, heard);
+  const heard = greedyPhones(logp, frames, width, labels);
+  let alignment = alignPhones(expected, heard, { prefix: partial });
+  if (partial) {
+    const present = alignment.filter(pair => pair.expectedIndex !== null && pair.heardIndex !== null);
+    if (!present.length) throw Error('Aucun mot du texte n’a pu être repéré. Choisissez le point de départ dans l’article puis réessayez.');
+    const lastPhone = Math.max(...present.map(pair => pair.expectedIndex)), lastWord = expected[lastPhone].wordIndex;
+    const stop = expected.findIndex((phone, index) => index > lastPhone && phone.wordIndex !== lastWord);
+    const count = stop < 0 ? expected.length : stop;
+    const covered = new Set(alignment.filter(pair => pair.expectedIndex !== null).map(pair => pair.expectedIndex));
+    for (let index = 0; index < count; index++) if (!covered.has(index)) alignment.push({ expectedIndex: index, heardIndex: null, status: 'missing' });
+    expected = expected.slice(0, count);
+    const words = [...reference.matchAll(/[\p{L}\p{N}]+(?:[’'-][\p{L}\p{N}]+)*/gu)];
+    reference = reference.slice(0, words[lastWord + 1]?.index ?? reference.length).trim();
+  }
   if (!heard.length) throw Error('Aucun phonème reconnu. Vérifiez le microphone et la langue du passage.');
   // Omitted phones have no acoustic interval; they cannot be assigned invented timestamps.
   const present = alignment.filter(p => p.expectedIndex !== null && p.heardIndex !== null);

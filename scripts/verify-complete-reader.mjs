@@ -1,0 +1,76 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import {DatabaseSync} from 'node:sqlite';
+import {build} from 'esbuild';
+import {readingWords,readingRange,transcriptProgress,acousticProgress} from '../app/reading-flow.ts';
+import {articleReadingTimeLimit} from '../app/reading-duration.ts';
+import {alignPhones,acousticAssessment,logSoftmaxRows} from '../public/phonetics/core.mjs';
+
+const text='Bonjour, nous apprenons le français ensemble. Nous nous entraînons chaque matin.';
+assert.equal(readingRange(text,2,5),'apprenons le français');
+assert.deepEqual(transcriptProgress(text,'Bonjour nous apprenons',0),{endWord:3,nextWord:3});
+assert.deepEqual(transcriptProgress(text,'Bonjour nous appre',0),{endWord:3,nextWord:2});
+assert.equal(transcriptProgress(text,'voiture verte ailleurs',0),null);
+assert.deepEqual(transcriptProgress(text,'Nous nous entraînons',6),{endWord:9,nextWord:9});
+assert.ok(articleReadingTimeLimit(Array(2500).fill('bonjour').join(' '))>1800,'Complete long articles are not split into ten-minute passages');
+const sequence=[0,1,1,0,2,2,0],labels=['<pad>','b','a'],logits=new Float32Array(sequence.length*3).fill(-8);
+sequence.forEach((p,i)=>logits[i*3+p]=8);
+const expected=[{id:1,phone:'b',word:'Bonjour',wordIndex:0},{id:2,phone:'a',word:'nous',wordIndex:1},{id:1,phone:'b',word:'nous',wordIndex:1},{id:2,phone:'a',word:'apprenons',wordIndex:2}];
+const samples=Float32Array.from({length:48000},(_,i)=>Math.sin(i*.05)*.12);
+const partial=acousticAssessment({logp:logSoftmaxRows(logits,sequence.length,3),frames:sequence.length,width:3,expected,labels,samples,reference:text,partial:true}).analysis;
+assert.equal(partial.reference,'Bonjour, nous');
+assert.deepEqual(acousticProgress(partial,0,11),{endWord:2,nextWord:1},'A partly pronounced word is repeated');
+assert.equal(partial.phonemes.some(p=>p.word==='apprenons'),false,'Unread suffix is excluded from this recording’s analysis');
+const long=Array.from({length:3600},(_,i)=>({id:i%3}));
+const alignment=alignPhones(long,long);assert.equal(alignment.length,long.length);assert.ok(alignment.every(p=>p.status==='match'),'Long articles use bounded traceback instead of failing at twelve million cells');
+
+await fs.mkdir('.qa',{recursive:true});
+await build({entryPoints:['backend/index.ts'],bundle:true,platform:'node',format:'esm',external:['cloudflare:sockets'],outfile:'.qa/complete-reader-api.mjs'});
+const {default:api}=await import('../.qa/complete-reader-api.mjs?'+Date.now());
+const db=new DatabaseSync(':memory:');
+for(const migration of (await fs.readdir('backend/migrations')).filter(name=>name.endsWith('.sql')).sort())db.exec(await fs.readFile('backend/migrations/'+migration,'utf8'));
+class Statement{constructor(sql,values=[]){this.sql=sql;this.values=values}bind(...values){return new Statement(this.sql,values)}async first(){return db.prepare(this.sql).get(...this.values)||null}async all(){return {results:db.prepare(this.sql).all(...this.values)}}async run(){return {meta:{changes:Number(db.prepare(this.sql).run(...this.values).changes)}}}}
+const env={DB:{prepare:sql=>new Statement(sql),batch:async statements=>{db.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());db.exec('COMMIT');return results}catch(error){db.exec('ROLLBACK');throw error}}},ALLOWED_ORIGIN:'https://mimflo.test',DEV_MODE:'local',IP_PEPPER:'local-reader-test-only'};
+const articleId='reader-test';
+db.prepare('INSERT INTO articles(id,title,category,level,minutes,intro,paragraphs,published,updated_at) VALUES(?,?,?,?,?,?,?,?,?)').run(articleId,'Article complet','Culture','B2',2,'',JSON.stringify([text]),1,Date.now());
+for(const pack of ['sprint','trial'])db.prepare('INSERT INTO article_packs VALUES(?,?)').run(articleId,pack);
+const hash=async value=>Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))).toString('base64');
+async function client(name,trial=false){const token=crypto.randomUUID();db.prepare('INSERT INTO users(id,email,email_key,password_hash,first_name,last_name,email_verified,created_at,trial_at) VALUES(?,?,?,?,?,?,1,?,?)').run(name,name+'@example.invalid',name,'test-only','Test',name,Date.now(),trial?Date.now():null);db.prepare('INSERT INTO auth_sessions VALUES(?,?,?)').run(await hash(token),name,Date.now()+600000);if(!trial){db.prepare('INSERT INTO entitlements VALUES(?,?,NULL,?,?,?,0,?)').run(crypto.randomUUID(),name,'sprint',Date.now()-1000,Date.now()+86400000,'test-owner');db.prepare('INSERT INTO paid_article_access(user_id,article_id,selected_at,next_at) VALUES(?,?,?,?)').run(name,articleId,Date.now(),Date.now()+86400000);}return token;}
+const paid=await client('paid'),trial=await client('trial',true);
+async function request(token,path,body){const response=await api.fetch(new Request('https://mimflo.test'+path,{method:body?'POST':'GET',headers:{Origin:env.ALLOWED_ORIGIN,...(token?{Authorization:'Bearer '+token}:{}),...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined}),env);return {status:response.status,data:await response.json()};}
+function analysis(reference,unfinished=false,seconds=10){const tokens=readingWords(reference);return {version:5,kind:'phonetic-experimental',model:'onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX',revision:'c69750f5043e5e1f8a71ab95dd3b98338c280c92',reference,seconds,phonemes:tokens.flatMap((token,index)=>['a','b'].map((phone,p)=>{const missing=unfinished&&index===tokens.length-1&&p===1;return {expected:phone,heard:missing?'':phone,word:token.text,wordIndex:index,status:missing?'missing':'match',confidence:missing?null:90,gop:missing?null:2,start:missing?null:index*.2+p*.05,end:missing?null:index*.2+p*.05+.04};})),timing:{voicedSeconds:Math.max(.3,seconds-1),pauses:[],phonesPerSecond:1},tips:[]};}
+const firstId=crypto.randomUUID(),secondId=crypto.randomUUID();
+const manual=(id,start,transcript)=>({action:'session',id,articleId,readingStartWord:start,seconds:10,transcript});
+assert.equal((await request(null,'/account',manual(firstId,0,'Bonjour nous apprenons'))).status,401);
+assert.equal((await request(paid,'/account',manual(firstId,0,'Bonjour nous apprenons'))).status,200);
+assert.equal((await request(paid,'/account',manual(firstId,0,'ne doit pas remplacer'))).status,200);
+assert.equal(db.prepare('SELECT transcript FROM readings WHERE id=?').get(firstId).transcript,'Bonjour nous apprenons','Retry does not overwrite the recording');
+assert.equal((await request(paid,'/account',manual(secondId,3,'le français ensemble'))).status,200);
+assert.equal(db.prepare('SELECT count(*) n FROM readings WHERE user_id=?').get('paid').n,2,'Two recordings keep distinct sessions');
+const body=(id,start,end,unfinished=false)=>({id,articleId,passageIndex:0,readingStartWord:start,readingEndWord:end,seconds:10,consent:true,analysis:analysis(readingRange(text,start,end),unfinished)});
+const upgraded=await request(paid,'/analysis/local',body(firstId,0,3));assert.equal(upgraded.status,200,JSON.stringify(upgraded.data));
+assert.equal(db.prepare('SELECT count(*) n FROM readings WHERE user_id=?').get('paid').n,2,'Analysis upgrades only its own recording');
+assert.equal(db.prepare('SELECT analysis FROM readings WHERE id=?').get(secondId).analysis,null,'Other recordings are unchanged');
+assert.equal((await request(paid,'/analysis/local',body(firstId,0,3))).status,200,'Repeated save is idempotent');
+assert.equal((await request(paid,'/analysis/local',body(firstId,3,5))).status,409,'A job cannot be reassigned to another recording position');
+const nextId=crypto.randomUUID(),continued=await request(paid,'/analysis/local',body(nextId,3,6,true));assert.equal(continued.status,200,JSON.stringify(continued.data));assert.equal(continued.data.analysis.articleNextWord,5);assert.equal(continued.data.analysis.articleEndWord,6);assert.equal(continued.data.analysis.referenceLevel,'B2');assert.equal(continued.data.analysis.accentScore,null);assert.equal(continued.data.analysis.fluencyScore,null);
+assert.equal((await request(paid,'/analysis/local',{...body(crypto.randomUUID(),0,3),readingEndWord:4})).status,400,'Reference text is bound to server article word positions');
+const trialId=crypto.randomUUID();assert.equal((await request(trial,'/account',manual(trialId,0,'Bonjour nous'))).status,200);
+assert.equal((await request(trial,'/analysis/local',{...body(trialId,0,3),seconds:181})).status,400,'Trial follows the article-based duration limit');
+assert.equal((await request(trial,'/analysis/local',{...body(trialId,0,3),seconds:45,analysis:analysis(readingRange(text,0,3),false,45)})).status,200,'Trial analysis exceeds thirty seconds and keeps its recording identity');
+assert.equal((await request(trial,'/analysis/local',body(crypto.randomUUID(),0,3))).status,409,'The one free analysis is preserved');
+const account=await request(paid,'/account');assert.equal(account.data.sessions.length,3);assert.deepEqual(new Set(account.data.sessions.map(session=>session.id)),new Set([firstId,secondId,nextId]));
+assert.equal(account.data.sessions.find(session=>session.id===nextId).reading_next_word,5);
+const owner=await client('owner');db.prepare("UPDATE users SET role='owner' WHERE id='owner'").run();
+const grammar=[{title:'Imparfait',explanation:'Décrire une habitude passée.',example:'Nous lisions chaque matin.'}];
+const articleUpdate={action:'article',article:{id:articleId,title:'Article complet',category:'Culture',level:'B2',paragraphs:[text],words:[['ensemble','Avec les autres.']],grammar,packs:['trial','sprint'],published:true}};
+assert.equal((await request(paid,'/admin/action',articleUpdate)).status,403,'A learner cannot edit teaching material');
+assert.equal((await request(owner,'/admin/action',articleUpdate)).status,200,'Grammar is saved through the real admin endpoint');
+const overview=await request(owner,'/admin/overview');assert.equal(overview.status,200);assert.deepEqual(overview.data.articles.find(a=>a.id===articleId).grammar,grammar,'Grammar survives an admin save and reload');
+const longText=Array(1500).fill('bonjour').join(' '),longId='long-reader-test';
+db.prepare('INSERT INTO articles(id,title,category,level,minutes,intro,paragraphs,published,updated_at) VALUES(?,?,?,?,?,?,?,?,?)').run(longId,'Longue lecture','Culture','C1',13,'',JSON.stringify([longText]),1,Date.now());
+db.prepare('INSERT INTO article_packs VALUES(?,?)').run(longId,'sprint');db.prepare('UPDATE paid_article_access SET article_id=? WHERE user_id=?').run(longId,'paid');
+const longRecording=crypto.randomUUID();
+assert.equal((await request(paid,'/account',{action:'session',id:longRecording,articleId:longId,readingStartWord:0,seconds:800,transcript:''})).status,200,'Paid whole-article recordings can exceed the old ten-minute cap');
+const longResult=await request(paid,'/analysis/local',{id:longRecording,articleId:longId,readingStartWord:0,readingEndWord:3,seconds:800,consent:true,analysis:analysis(readingRange(longText,0,3),false,800)});assert.equal(longResult.status,200,JSON.stringify(longResult.data));
+console.log('PASS: full-text ranges, repeated and unfinished words, acoustic prefix trimming, long bounded alignment, separate recording IDs, idempotency, own-session analysis upgrade, persisted resume cursor, server-bound references and article-adapted trial duration and the single free analysis. No production data changed.');

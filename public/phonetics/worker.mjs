@@ -1,6 +1,6 @@
 import { AutoModelForCTC, AutoProcessor, env } from './vendor/transformers.min.js';
-import { MODEL, REVISION, wavSamples, logSoftmaxRows, acousticAssessment, vocalTiming } from './core.mjs?v=6';
-import { frenchPhones } from './g2p.mjs?v=6';
+import { MODEL, REVISION, wavSamples, logSoftmaxRows, acousticAssessment, vocalTiming } from './core.mjs?v=7';
+import { frenchPhones } from './g2p.mjs?v=7';
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 env.backends.onnx.wasm.numThreads = 1;
@@ -27,12 +27,12 @@ async function loadEngine(id) {
 }
 self.onmessage = async ({ data }) => {
   if (data.type !== 'analyse') return;
-  const { id, reference, wav } = data;
+  const { id, reference, wav, partial = false } = data;
   if (running) { self.postMessage({ id, type: 'error', message: 'Une analyse est déjà en cours.' }); return; }
   running = true;
   try {
     const samples = wavSamples(new Uint8Array(wav)); vocalTiming(samples);
-    if (samples.length / 16000 > 600 || samples.length / 16000 < 3) throw Error('La lecture doit durer entre 3 secondes et 10 minutes.');
+    if (samples.length / 16000 > 3600 || samples.length / 16000 < 3) throw Error('La lecture doit durer entre 3 secondes et 60 minutes.');
     const { model, processor, vocab, labels } = await loadEngine(id);
     progress(id, 'Conversion du passage en phonèmes français…');
     const expected = await frenchPhones(reference, vocab);
@@ -56,7 +56,7 @@ self.onmessage = async ({ data }) => {
       await new Promise(resolve => setTimeout(resolve, 0));
     }
     progress(id, 'Alignement CTC et calcul des indices acoustiques…');
-    const result = acousticAssessment({ logp, frames: totalFrames, width, expected, labels, samples, reference });
+    const result = acousticAssessment({ logp, frames: totalFrames, width, expected, labels, samples, reference, partial });
     self.postMessage({ id, type: 'result', result });
   } catch (e) {
     console.error('MimFlo phonetic engine', e);

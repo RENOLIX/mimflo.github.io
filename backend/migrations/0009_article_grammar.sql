@@ -1,0 +1,1 @@
+ALTER TABLE articles ADD COLUMN grammar TEXT NOT NULL DEFAULT '[]';

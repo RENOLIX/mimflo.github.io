@@ -1,0 +1,18 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {MODEL,REVISION} from '../public/phonetics/core.mjs';
+globalThis.require=createRequire(import.meta.url);
+globalThis.__dirname=path.resolve('public/phonetics/vendor');
+const {frenchPhones}=await import('../public/phonetics/g2p.mjs');
+const vendor=path.resolve('public/phonetics/vendor');
+const data=fs.readFileSync(path.join(vendor,'piper_phonemize.data'));
+const options={locateFile:f=>path.join(vendor,f),printErr:console.error,wasmBinary:fs.readFileSync(path.join(vendor,'piper_phonemize.wasm')),getPreloadedPackage:()=>data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength)};
+const vocab=await(await fetch(`https://huggingface.co/${MODEL}/resolve/${REVISION}/vocab.json`)).json();
+const reference=Array(100).fill('Nous apprenons le français ensemble. Les amis lisent un article chaque matin.').join(' ');
+const phones=await frenchPhones(reference,vocab,options);
+assert.ok(phones.length>3000);assert.equal(phones[0].wordIndex,0);assert.equal(phones.at(-1).wordIndex,1199);
+assert.ok(phones.every(phone=>phone.word&&Number.isInteger(phone.wordIndex)&&Number.isInteger(phone.id)));
+assert.deepEqual(await frenchPhones(reference,vocab,options),phones,'Repeated long conversions restore the WASM argument stack');
+console.log('PASS: real French phonemizer processes 1200 words twice in the same runtime, with continuous word indexes and stable phone batches.');

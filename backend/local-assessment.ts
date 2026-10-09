@@ -2,10 +2,10 @@ const model='onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX';
 const revision='c69750f5043e5e1f8a71ab95dd3b98338c280c92';
 const number=(v:unknown,min:number,max:number):number=>{if(typeof v!=='number'||!Number.isFinite(v)||v<min||v>max)throw Error('Mesure acoustique invalide.');return v;};
 const label=(v:unknown,max=120)=>{if(typeof v!=='string'||v.length>max)throw Error('Libellé phonétique invalide.');return v;};
-export function validateLocalAssessment(input:any,reference:string,seconds:number,passage:number){
+export function validateLocalAssessment(input:any,reference:string,seconds:number,passage:number,maxSeconds=600){
  if(!input||input.kind!=='phonetic-experimental'||input.version!==5||input.model!==model||input.revision!==revision||input.reference!==reference)throw Error('Cette analyse ne correspond pas au passage choisi.');
- if(Math.abs(number(input.seconds,3,600)-seconds)>.6)throw Error('La durée de l’analyse ne correspond pas à la lecture.');
- if(!Array.isArray(input.phonemes)||!input.phonemes.length||input.phonemes.length>5000)throw Error('Détail phonétique incomplet.');
+ if(Math.abs(number(input.seconds,3,maxSeconds)-seconds)>.6)throw Error('La durée de l’analyse ne correspond pas à la lecture.');
+ if(!Array.isArray(input.phonemes)||!input.phonemes.length||input.phonemes.length>50000)throw Error('Détail phonétique incomplet.');
  const referenceWords=reference.match(/[\p{L}\p{N}]+(?:[’'-][\p{L}\p{N}]+)*/gu)||[];
  const phonemes=input.phonemes.map((p:any)=>{
   const expected=label(p.expected,12),heard=label(p.heard,12),status=p.status;
