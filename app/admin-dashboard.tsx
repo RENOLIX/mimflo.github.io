@@ -10,7 +10,7 @@ import {countries} from './countries';
 import AdminArticles from './admin-articles';
 import {Button} from '@/components/ui/button';
 import './admin-dashboard.css';
-const menu=[['overview','Vue d’ensemble',LayoutDashboard],['clients','Clients & progression',Users],['payments','Paiements & commandes',CreditCard],['articles','Articles & packs',BookOpen],['accounts','Comptes',UserPlus],['settings','Réglages',Settings]] as const;
+const menu=[['overview','Vue d’ensemble',LayoutDashboard],['clients','Clients & progression',Users],['payments','Paiements & commandes',CreditCard],['articles','Articles & bibliothèque',BookOpen],['accounts','Comptes',UserPlus],['settings','Réglages',Settings]] as const;
 const initialUser={email:'',password:'',firstName:'',lastName:'',role:'admin'};
 const date=(t:number)=>new Date(t).toLocaleDateString('fr-FR');
 const status=(s:string)=>s==='approved'?'Validée':s==='rejected'?'Refusée':'En attente';
