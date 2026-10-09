@@ -32,6 +32,8 @@ for(const migration of (await fs.readdir('backend/migrations')).filter(name=>nam
 class Statement{constructor(sql,values=[]){this.sql=sql;this.values=values}bind(...values){return new Statement(this.sql,values)}async first(){return db.prepare(this.sql).get(...this.values)||null}async all(){return {results:db.prepare(this.sql).all(...this.values)}}async run(){return {meta:{changes:Number(db.prepare(this.sql).run(...this.values).changes)}}}}
 const env={DB:{prepare:sql=>new Statement(sql),batch:async statements=>{db.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());db.exec('COMMIT');return results}catch(error){db.exec('ROLLBACK');throw error}}},ALLOWED_ORIGIN:'https://mimflo.test',DEV_MODE:'local',IP_PEPPER:'local-reader-test-only'};
 const articleId='reader-test';
+assert.equal(db.prepare("SELECT a.title FROM articles a JOIN article_packs p ON p.article_id=a.id WHERE p.pack='trial'").get().title,'Environnement : peut-on concilier développement et protection de la planète','The offered article is replaced by the supplied environmental text');
+db.prepare("DELETE FROM article_packs WHERE pack='trial'").run(); // Isolate the synthetic reader fixture.
 db.prepare('INSERT INTO articles(id,title,category,level,minutes,intro,paragraphs,published,updated_at) VALUES(?,?,?,?,?,?,?,?,?)').run(articleId,'Article complet','Culture','B2',2,'',JSON.stringify([text]),1,Date.now());
 for(const pack of ['sprint','trial'])db.prepare('INSERT INTO article_packs VALUES(?,?)').run(articleId,pack);
 const hash=async value=>Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))).toString('base64');

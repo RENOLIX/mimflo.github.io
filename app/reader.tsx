@@ -12,6 +12,7 @@ import {useArticleListening} from './use-article-listening';
 import './reader-controls.css';
 import ReaderStudio from './reader-studio';
 import LanguagePlacement from './language-placement';
+import {prepareLocalPronunciation} from './local-pronunciation';
 import {TrainingProgress,TrainingExercises} from './reading-training';
 
 type Props={articleId:string;account:any;back:()=>void;save:(b:any)=>Promise<any>;refresh:()=>Promise<any>;go:(v:string)=>void};
@@ -74,7 +75,7 @@ export default function Reader({articleId,account,back,save,refresh,go}:Props){
    };
    const Recognition=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;
    if(speechConsent&&Recognition){const r=new Recognition();r.lang='fr-FR';r.continuous=true;r.interimResults=true;r.onresult=(event:any)=>{let value='';for(let i=0;i<event.results.length;i++)value+=event.results[i][0].transcript+' ';transcript.current=value.trim();const progress=transcriptProgress(text,transcript.current,first);if(mounted.current&&progress)setLiveWord(Math.min(words.length-1,progress.nextWord));};r.onerror=()=>{};recognition.current=r;try{r.start()}catch{}}
-   startAt.current=Date.now();setSeconds(0);setLiveWord(first);rec.start();setRecording(true);
+   startAt.current=Date.now();setSeconds(0);setLiveWord(first);rec.start();setRecording(true);prepareLocalPronunciation();
   }catch{stream.current?.getTracks().forEach(track=>track.stop());setError('Le microphone est indisponible. Autorisez son utilisation et vérifiez le microphone choisi dans votre navigateur.');}
   finally{if(mounted.current)setStarting(false);}
  }

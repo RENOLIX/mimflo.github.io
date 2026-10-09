@@ -1,3 +1,4 @@
+import {soundDescription} from './sound-guidance';
 export type ReportPhone = {expected:string;heard:string;word:string|null;wordIndex?:number|null;status:string;confidence:number|null;gop:number|null;start:number|null;end:number|null};
 export type ReportWord = {index:number;text:string;phones:ReportPhone[];status:'recognized'|'uncertain'|'missing'|'unavailable';confidence:number|null;pause:number|null};
 const wordPattern=/[\p{L}\p{N}]+(?:[’'-][\p{L}\p{N}]+)*/gu;
@@ -47,8 +48,8 @@ export function wordFeedback(word:ReportWord){
  const missing=word.phones.filter(p=>p.status==='missing');
  if(word.status==='missing')return 'Les sons de ce mot n’ont pas été reconnus. Vérifiez que vous l’avez lu puis réécoutez votre voix.';
  const different=word.phones.find(p=>p.status==='different');
- if(different)return `Pour /${different.expected}/, le son /${different.heard}/ a été repéré. Écoutez ce son et répétez le mot lentement.`;
- if(missing.length)return `${missing.length===1?'Le son':'Les sons'} ${[...new Set(missing.map(p=>'/'+p.expected+'/'))].join(', ')} ${missing.length===1?'n’a pas été reconnu':'n’ont pas été reconnus'}. Comparez avec la lecture de référence.`;
+ if(different)return `Travaillez ${soundDescription(different.expected)}. Son repéré dans votre enregistrement : ${soundDescription(different.heard)}. Écoutez le mot et répétez-le lentement.`;
+ if(missing.length)return `À retravailler : ${[...new Set(missing.map(p=>soundDescription(p.expected)))].join(' ; ')}. Ces sons n’ont pas été reconnus. Comparez avec la lecture de référence.`;
  const weak=word.phones.find(p=>(p.confidence??0)<55);
- return weak?`Le son /${weak.expected}/ est à réécouter. Répétez le mot dans un endroit calme : la qualité de l’enregistrement peut aussi expliquer cet écart.`:'Écoutez le mot puis répétez-le dans sa phrase.';
+ return weak?`Réécoutez ${soundDescription(weak.expected)}. Répétez le mot dans un endroit calme : la qualité de l’enregistrement peut aussi expliquer cet écart.`:'Écoutez le mot puis répétez-le dans sa phrase.';
 }

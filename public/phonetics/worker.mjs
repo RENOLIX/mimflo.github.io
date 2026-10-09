@@ -26,6 +26,7 @@ async function loadEngine(id) {
   return enginePromise;
 }
 self.onmessage = async ({ data }) => {
+  if (data.type === 'prepare') { try { await loadEngine(data.id); } catch { /* Retry with visible errors when analysis is requested. */ } return; }
   if (data.type !== 'analyse') return;
   const { id, reference, wav, partial = false } = data;
   if (running) { self.postMessage({ id, type: 'error', message: 'Une analyse est déjà en cours.' }); return; }
