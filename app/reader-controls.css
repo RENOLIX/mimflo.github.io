@@ -4,6 +4,8 @@
 .reader-dock-library{display:flex;align-items:center;gap:7px;min-height:42px;padding:9px 12px;border:1px solid #dfd0e6;border-radius:12px;background:#f6edf9;color:#9270a3;font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0}
 .reader-dock-library b{background:white;border-radius:50%;min-width:22px;min-height:22px;display:grid;place-items:center;font-size:11px}
 .reader-dock-library:disabled{opacity:.45;cursor:default}
+.reader-dock-status>div{min-width:0}
+.reader-dock-status strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .reader-record-dock.is-listening{border-color:#c9e1dc;background:#f4fbf9f5}
 .is-listening .reader-record-light{background:#8cbfb4;box-shadow:0 0 0 5px #e1f0eb}
 .reader-studio{position:fixed;inset:0;margin:auto;border:1px solid #ead6e5;border-radius:26px;padding:0;width:min(850px,calc(100% - 40px));max-height:calc(100dvh - 50px);background:#fffcfe;color:var(--text);box-shadow:0 25px 90px #65537140;overflow:hidden}
