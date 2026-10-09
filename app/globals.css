@@ -1,6 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Caveat:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
+
+/* Keep the main subjects visible in the wide article cover crop. */
+.article-banner[src*="mimflo-cover-"]{object-position:center 30%}
 .inline-link{padding:0;border:0;background:none;color:#a16b90;text-decoration:underline;text-underline-offset:3px}.logout{display:flex;align-items:center;gap:12px;font-size:14px;padding:10px}.logout svg{width:18px;color:var(--purple)}.footer-links{display:flex;gap:20px;flex-wrap:wrap}.footer-links button{background:none;border:0;padding:4px 0;color:var(--muted);font-size:12px}.payment-icon{color:var(--sage);margin-bottom:14px;width:29px;height:29px}.hero-proof,.hero-proof span{font-size:12px}.brand span{white-space:nowrap}.field [data-slot=select-trigger]{color:var(--ink)}[data-slot=select-content]{background:white;color:var(--ink);border-color:var(--line);border-radius:12px;z-index:50}.card p,.home-cards p{overflow-wrap:anywhere}.card{min-width:0}.btn[data-slot]:disabled{opacity:.55;transform:none}.notes-grid .notice{margin-bottom:0}.reader-aside .small{font-size:13px}
 @theme inline { --color-primary:#ca7796; --color-primary-foreground:#fff; --color-background:#fff; --color-foreground:#4d4a67; --color-ring:#a586b7; --color-input:#e9dfe9; --color-muted-foreground:#817c91; --color-border:#ebe3e7; }
 :root{--pink:#e89aaa;--pink-dark:#bb587d;--purple:#a586b7;--ink:#4a4967;--muted:#817b92;--cream:#fdfaf6;--sage:#a9c6c3;--line:#eee5e7;--shadow:0 8px 35px #7f618008}
