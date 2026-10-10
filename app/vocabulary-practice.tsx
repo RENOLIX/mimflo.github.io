@@ -1,4 +1,5 @@
 'use client';
+import {createMicrophoneRecorder,type MicrophoneRecorder} from './microphone-recorder';
 import {useEffect,useRef,useState} from 'react';
 import {Mic,Square,Volume2,ArrowRight,RotateCcw,Trash2,Sparkles} from 'lucide-react';
 import {audioToWav} from './audio-analysis';
@@ -10,7 +11,7 @@ import {reportData,wordFeedback} from './reading-report-data';
 type Props={word:string;scope:string;definition:string;readingScore:number|null;disabled:boolean;locked:boolean;onBusy:(busy:boolean)=>void;onListen:()=>void;onChoose:()=>void};
 export default function VocabularyPractice({word,scope,definition,readingScore,disabled,locked,onBusy,onListen,onChoose}:Props){
  const [stage,setStage]=useState<'idle'|'starting'|'recording'|'analysing'>('idle'),[open,setOpen]=useState(false),[attempts,setAttempts]=useState<VocabularyAttempt[]>([]),[selected,setSelected]=useState<string|null>(null),[message,setMessage]=useState(''),[audioUrl,setAudioUrl]=useState(''),[progress,setProgress]=useState<AnalysisProgress>({percent:0,phase:'preparing'});
- const mounted=useRef(true),run=useRef(0),busy=useRef(false),recorder=useRef<MediaRecorder|null>(null),stream=useRef<MediaStream|null>(null),player=useRef<HTMLAudioElement|null>(null),timer=useRef<ReturnType<typeof setTimeout>|null>(null),began=useRef(0);
+ const mounted=useRef(true),run=useRef(0),busy=useRef(false),recorder=useRef<MicrophoneRecorder|null>(null),stream=useRef<MediaStream|null>(null),player=useRef<HTMLAudioElement|null>(null),timer=useRef<ReturnType<typeof setTimeout>|null>(null),began=useRef(0);
  const current=attempts.find(a=>a.id===selected)||attempts[0],latestScore=attempts.find(a=>a.analysis)?.analysis.score??null;
  useEffect(()=>{mounted.current=true;let active=true;listVocabularyAttempts(scope).then(stored=>{if(active)setAttempts(existing=>[...new Map([...stored,...existing].map(a=>[a.id,a])).values()].sort((a,b)=>b.createdAt-a.createdAt))}).catch(()=>{if(active)setMessage('Le stockage local est indisponible. Gardez cette page ouverte pour conserver vos répétitions.')});return()=>{active=false;mounted.current=false;run.current++;if(timer.current)clearTimeout(timer.current);if(recorder.current?.state==='recording'){recorder.current.onstop=null;recorder.current.stop()}stream.current?.getTracks().forEach(t=>t.stop());if(busy.current){cancelLocalPronunciation();onBusy(false)}}},[scope]);
  useEffect(()=>{if(!current?.blob){setAudioUrl('');return}const url=URL.createObjectURL(current.blob);setAudioUrl(url);return()=>URL.revokeObjectURL(url)},[current?.id,current?.blob]);
@@ -25,10 +26,10 @@ export default function VocabularyPractice({word,scope,definition,readingScore,d
  }
  async function start(){
   if(disabled||locked||busy.current)return;const operation=++run.current;setOpen(true);setMessage('');setStage('starting');lock(true);
-  try{if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder)throw Error('Autorisez le microphone dans un navigateur récent pour répéter ce mot.');const media=await navigator.mediaDevices.getUserMedia({audio:true});if(!mounted.current||operation!==run.current){media.getTracks().forEach(t=>t.stop());return}stream.current=media;const rec=new MediaRecorder(media),chunks:BlobPart[]=[];recorder.current=rec;
+  try{if(!navigator.mediaDevices?.getUserMedia||!window.AudioWorkletNode)throw Error('Autorisez le microphone dans un navigateur récent pour répéter ce mot.');const media=await navigator.mediaDevices.getUserMedia({audio:true});if(!mounted.current||operation!==run.current){media.getTracks().forEach(t=>t.stop());return}stream.current=media;const rec=await createMicrophoneRecorder(media);if(!mounted.current){rec.dispose();media.getTracks().forEach(t=>t.stop());return;}const chunks:BlobPart[]=[];recorder.current=rec;
    rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
    rec.onerror=()=>{run.current++;if(timer.current)clearTimeout(timer.current);media.getTracks().forEach(t=>t.stop());rec.onstop=null;if(mounted.current){setStage('idle');lock(false);setMessage('L’enregistrement a été interrompu. Vérifiez votre microphone et réessayez.')}};
-   rec.onstop=async()=>{if(timer.current)clearTimeout(timer.current);media.getTracks().forEach(t=>t.stop());if(!mounted.current||operation!==run.current)return;setStage('analysing');setProgress({percent:0,phase:'preparing'});const attempt:VocabularyAttempt={id:crypto.randomUUID(),scope,createdAt:Date.now(),seconds:(Date.now()-began.current)/1000,blob:new Blob(chunks,{type:rec.mimeType})};update(attempt);await persist(attempt);if(mounted.current&&operation===run.current)await analyse(attempt,operation)};
+   rec.onstop=async()=>{if(timer.current)clearTimeout(timer.current);media.getTracks().forEach(t=>t.stop());if(!mounted.current||operation!==run.current)return;setStage('analysing');setProgress({percent:0,phase:'preparing'});const attempt:VocabularyAttempt={id:crypto.randomUUID(),scope,createdAt:Date.now(),seconds:rec.duration,blob:new Blob(chunks,{type:rec.mimeType})};update(attempt);await persist(attempt);if(mounted.current&&operation===run.current)await analyse(attempt,operation)};
    began.current=Date.now();rec.start();setStage('recording');prepareLocalPronunciation();timer.current=setTimeout(()=>{if(rec.state==='recording')rec.stop()},29000);
   }catch(e:any){stream.current?.getTracks().forEach(t=>t.stop());if(mounted.current&&operation===run.current){setStage('idle');lock(false);setMessage(e.name==='NotAllowedError'?'Autorisez le microphone pour répéter le mot.':e.message||'Le microphone est indisponible.')}}
  }

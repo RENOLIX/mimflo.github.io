@@ -1,4 +1,5 @@
 'use client';
+import {createMicrophoneRecorder,type MicrophoneRecorder} from './microphone-recorder';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {Headphones,Mic,Square,Volume2,Plus,ChevronLeft,Check,RotateCcw,Trash2,Sparkles,AudioLines,LocateFixed} from 'lucide-react';
 import {Button} from '@/components/ui/button';
@@ -28,7 +29,7 @@ export default function Reader({articleId,account,back,save,refresh,go}:Props){
  const [attempts,setAttempts]=useState<ReadingAttempt[]>([]),[selected,setSelected]=useState<ReadingAttempt|null>(null),[blob,setBlob]=useState<Blob|null>(null);
  const [resumeWord,setResumeWord]=useState(0),[liveWord,setLiveWord]=useState<number|null>(null),[recording,setRecording]=useState(false),[seconds,setSeconds]=useState(0);
  const [starting,setStarting]=useState(false),[capturing,setCapturing]=useState(false),[aiBusy,setAiBusy]=useState(false),[wordBusy,setWordBusy]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState(''),[speechConsent,setSpeechConsent]=useState(false);
- const mounted=useRef(true),interacted=useRef(false),recorder=useRef<MediaRecorder|null>(null),stream=useRef<MediaStream|null>(null),recognition=useRef<any>(null),transcript=useRef(''),startAt=useRef(0),recordStart=useRef(0),recordLimit=useRef(180),analysisSection=useRef<HTMLElement|null>(null),attemptsRef=useRef<ReadingAttempt[]>([]);
+ const mounted=useRef(true),interacted=useRef(false),recorder=useRef<MicrophoneRecorder|null>(null),stream=useRef<MediaStream|null>(null),recognition=useRef<any>(null),transcript=useRef(''),startAt=useRef(0),recordStart=useRef(0),recordLimit=useRef(180),analysisSection=useRef<HTMLElement|null>(null),attemptsRef=useRef<ReadingAttempt[]>([]);
  const listening=useArticleListening(text,setError),blocked=starting||capturing||aiBusy||saving||wordBusy;
  const cursorKey='mimflo-reading-cursor:'+userId+':'+articleId;
  const signature=text.length+':'+text.slice(0,100)+':'+text.slice(-100);
@@ -48,7 +49,7 @@ export default function Reader({articleId,account,back,save,refresh,go}:Props){
   }).catch(()=>{if(active)setError('Le stockage local des enregistrements est indisponible. Gardez cette page ouverte pour conserver votre lecture.');});
   return()=>{active=false;mounted.current=false;recognition.current?.abort?.();const rec=recorder.current;if(rec?.state==='recording')rec.stop();stream.current?.getTracks().forEach(track=>track.stop());};
  },[articleId,userId]);
- useEffect(()=>{if(!recording)return;const timer=setInterval(()=>{const elapsed=Math.min(recordLimit.current,Math.floor((Date.now()-startAt.current)/1000));setSeconds(elapsed);if(elapsed>=recordLimit.current)stop()},250);return()=>clearInterval(timer)},[recording]);
+ useEffect(()=>{if(!recording)return;const timer=setInterval(()=>{const elapsed=Math.min(recordLimit.current,Math.floor((performance.now()-startAt.current)/1000));setSeconds(elapsed);if(elapsed>=recordLimit.current)stop()},250);return()=>clearInterval(timer)},[recording]);
 
 
  async function start(fromWord=resumeWord){
@@ -57,15 +58,15 @@ export default function Reader({articleId,account,back,save,refresh,go}:Props){
   if(account.accessType!=='paid'&&!account.profile.trial_at){go('essai');return;}
   if(account.accessType!=='paid'&&Date.now()-account.profile.trial_at>48*3600000){setError('Votre entraînement offert est terminé. Vos enregistrements restent disponibles.');return;}
   if(fromWord>=words.length){setError('Vous avez terminé l’article. Choisissez « Recommencer depuis le début » pour refaire une lecture.');return;}
-  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){setError('L’enregistrement nécessite un navigateur récent et l’autorisation du microphone.');return;}
+  if(!navigator.mediaDevices?.getUserMedia||!window.AudioWorkletNode){setError('L’enregistrement nécessite un navigateur récent et l’autorisation du microphone.');return;}
   setStarting(true);listening.stop();setStudio(false);moveCursor(fromWord);
   const first=fromWord,limit=articleReadingTimeLimit(readingRange(text,fromWord)),attemptId=crypto.randomUUID(),createdAt=Date.now();
   try{
    const media=await navigator.mediaDevices.getUserMedia({audio:true});if(!mounted.current){media.getTracks().forEach(track=>track.stop());return;}
-   stream.current=media;const rec=new MediaRecorder(media),chunks:BlobPart[]=[];recorder.current=rec;recordStart.current=first;recordLimit.current=limit;transcript.current='';
+   stream.current=media;const rec=await createMicrophoneRecorder(media);if(!mounted.current){rec.dispose();media.getTracks().forEach(t=>t.stop());return;}const chunks:BlobPart[]=[];recorder.current=rec;recordStart.current=first;recordLimit.current=limit;transcript.current='';
    rec.ondataavailable=event=>{if(event.data.size)chunks.push(event.data)};
    rec.onstop=async()=>{
-    const captured=new Blob(chunks,{type:rec.mimeType}),duration=Math.min(limit,Math.max(0,Math.floor((Date.now()-startAt.current)/1000)));
+    const captured=new Blob(chunks,{type:rec.mimeType}),duration=Math.min(limit,Math.max(0,Math.round(rec.duration)));
     media.getTracks().forEach(track=>track.stop());
     const speech=recognition.current;if(speech){await new Promise<void>(resolve=>{const timer=setTimeout(resolve,350);speech.onend=()=>{clearTimeout(timer);resolve()};try{speech.stop()}catch{clearTimeout(timer);resolve()}});recognition.current=null;}
     const progress=transcriptProgress(text,transcript.current,first);
@@ -75,7 +76,7 @@ export default function Reader({articleId,account,back,save,refresh,go}:Props){
    };
    const Recognition=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;
    if(speechConsent&&Recognition){const r=new Recognition();r.lang='fr-FR';r.continuous=true;r.interimResults=true;r.onresult=(event:any)=>{let value='';for(let i=0;i<event.results.length;i++)value+=event.results[i][0].transcript+' ';transcript.current=value.trim();const progress=transcriptProgress(text,transcript.current,first);if(mounted.current&&progress)setLiveWord(Math.min(words.length-1,progress.nextWord));};r.onerror=()=>{};recognition.current=r;try{r.start()}catch{}}
-   startAt.current=Date.now();setSeconds(0);setLiveWord(first);rec.start();setRecording(true);prepareLocalPronunciation();
+   startAt.current=performance.now();setSeconds(0);setLiveWord(first);rec.start();setRecording(true);prepareLocalPronunciation();
   }catch{stream.current?.getTracks().forEach(track=>track.stop());setError('Le microphone est indisponible. Autorisez son utilisation et vérifiez le microphone choisi dans votre navigateur.');}
   finally{if(mounted.current)setStarting(false);}
  }
