@@ -1,9 +1,9 @@
-export async function audioToWav(blob:Blob,maxSeconds:number){
+export async function audioToWav(blob:Blob,maxSeconds:number,minSeconds=3){
  const ctx=new AudioContext();
  const bounded=async<T,>(promise:Promise<T>):Promise<T>=>{let timer:ReturnType<typeof setTimeout>;try{return await Promise.race([promise,new Promise<T>((_,reject)=>{timer=setTimeout(()=>reject(new Error('La préparation de cet audio prend trop de temps. Votre enregistrement reste disponible pour réessayer.')),30000)})])}finally{clearTimeout(timer!)}};
  try{
   const source=await bounded(ctx.decodeAudioData(await blob.arrayBuffer()));
-  if(source.duration<3||source.duration>maxSeconds+1)throw new Error(`La lecture doit durer entre 3 secondes et ${maxSeconds/60} minutes.`);
+  if(source.duration<minSeconds||source.duration>maxSeconds+1)throw new Error(minSeconds<3?'Répétez le mot entièrement avant d’arrêter l’enregistrement.':`La lecture doit durer entre 3 secondes et ${maxSeconds/60} minutes.`);
   const frames=Math.min(maxSeconds*16000,Math.round(source.duration*16000)),offline=new OfflineAudioContext(1,frames,16000),node=offline.createBufferSource();node.buffer=source;node.connect(offline.destination);node.start();
   const rendered=await bounded(offline.startRendering()),samples=rendered.getChannelData(0),bytes=new Uint8Array(44+samples.length*2),v=new DataView(bytes.buffer);
   const tag=(at:number,s:string)=>{for(let i=0;i<s.length;i++)bytes[at+i]=s.charCodeAt(i)};

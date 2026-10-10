@@ -38,12 +38,15 @@ async function loadEngine() {
 self.onmessage = async ({ data }) => {
   if (data.type === 'prepare') { try { await loadEngine(); } catch { /* Visible retry starts with analyse. */ } return; }
   if (data.type !== 'analyse') return;
-  const { id, reference, wav, audioHash, partial = false } = data;
+  const { id, reference, wav, audioHash, partial = false, wordPractice = false } = data;
   if (running) { self.postMessage({ id, type: 'error', message: 'Une analyse est déjà en cours.' }); return; }
   running = true; activeId = id;
   try {
     const samples = wavSamples(new Uint8Array(wav)); vocalTiming(samples);
-    if (samples.length / 16000 > 3600 || samples.length / 16000 < 3) throw Error('La lecture doit durer entre 3 secondes et 60 minutes.');
+    if (wordPractice === true) {
+      const words = reference.match(/[\p{L}\p{N}]+(?:[’'-][\p{L}\p{N}]+)*/gu) || [];
+      if (!words.length || words.length > 12 || samples.length / 16000 < .3 || samples.length / 16000 > 30) throw Error('Répétez uniquement le mot ou l’expression choisi, puis arrêtez l’enregistrement.');
+    } else if (samples.length / 16000 > 3600 || samples.length / 16000 < 3) throw Error('La lecture doit durer entre 3 secondes et 60 minutes.');
     progress(id, 5 + loadPercent * .2, 'preparing');
     const { model, processor, vocab, labels } = await loadEngine();
     progress(id, 25, 'preparing');

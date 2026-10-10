@@ -6,18 +6,18 @@ const results=new Map<string,LocalResult>();
 export const ANALYSIS_STALL_MS=120000;
 export const ANALYSIS_MAX_MS=600000;
 function releaseLater(){clearTimeout(idle);idle=setTimeout(()=>{if(!rejectActive){worker?.terminate();worker=null}},10*60000)}
-function getWorker(){clearTimeout(idle);return worker||(worker=new Worker('/phonetics/worker.mjs?v=10',{type:'module'}))}
+function getWorker(){clearTimeout(idle);return worker||(worker=new Worker('/phonetics/worker.mjs?v=11',{type:'module'}))}
 export function cancelLocalPronunciation(){generation++;if(!rejectActive){if(worker)releaseLater();return;}const reject=rejectActive;rejectActive=null;worker?.terminate();worker=null;clearTimeout(idle);reject();}
 export function prepareLocalPronunciation(){
  if(!window.Worker||!window.WebAssembly)return;
  try{getWorker().postMessage({type:'prepare',id:'prepare'});releaseLater()}catch{/* Analysis reports preparation failures. */}
 }
-export async function localPronunciation(wav:Uint8Array,reference:string,_seconds:number,onProgress?:(progress:AnalysisProgress)=>void,partial=false):Promise<LocalResult>{
+export async function localPronunciation(wav:Uint8Array,reference:string,_seconds:number,onProgress?:(progress:AnalysisProgress)=>void,partial=false,options:{wordPractice?:boolean}={}):Promise<LocalResult>{
  if(!window.Worker||!window.WebAssembly)throw new Error('L’analyse nécessite un navigateur récent.');
  const currentGeneration=generation;
  const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',wav as BufferSource))).map(byte=>byte.toString(16).padStart(2,'0')).join('');
  if(currentGeneration!==generation)throw new Error('Analyse annulée. Votre enregistrement reste disponible.');
- const key=hash+':'+partial+':'+reference,cached=results.get(key);if(cached){onProgress?.({percent:97,phase:'finishing'});return cached;}
+ const key=hash+':'+partial+':'+!!options.wordPractice+':'+reference,cached=results.get(key);if(cached){onProgress?.({percent:97,phase:'finishing'});return cached;}
  if(rejectActive)throw new Error('Une analyse est déjà en cours.');
  const active=getWorker(),id=crypto.randomUUID();
  return new Promise((resolve,reject)=>{
@@ -42,6 +42,6 @@ export async function localPronunciation(wav:Uint8Array,reference:string,_second
   function error(){active.terminate();if(worker===active)worker=null;cleanup();reject(new Error('L’analyse n’a pas démarré. Vérifiez votre connexion puis réessayez. Votre enregistrement reste disponible.'))}
   active.addEventListener('message',message);active.addEventListener('error',error);rejectActive=cancel;
   armStall();maximum=setTimeout(()=>timedOut(true),ANALYSIS_MAX_MS);
-  const buffer=wav.slice().buffer;try{active.postMessage({type:'analyse',id,wav:buffer,audioHash:hash,reference,partial},[buffer])}catch{error()}
+  const buffer=wav.slice().buffer;try{active.postMessage({type:'analyse',id,wav:buffer,audioHash:hash,reference,partial,wordPractice:options.wordPractice===true},[buffer])}catch{error()}
  });
 }
