@@ -26,14 +26,20 @@ export function wavSamples(bytes) {
 
 export function phonemeTokens(ipa, vocab) {
   // Nasal vowels and affricates are indivisible labels in the model vocabulary.
-  const labels = Object.keys(vocab).filter(p => !/[<>|]/.test(p)).sort((a, b) => b.length - a.length);
+  const labels = Object.keys(vocab).filter(p => !/[<>|]/.test(p))
+    .map(phone => ({ phone, normalized: phone.normalize('NFD') }))
+    .sort((a, b) => b.normalized.length - a.normalized.length);
   const cleaned = ipa.normalize('NFD').replace(/[ˈˌ.,!?;:ːˑ\-…\u200d\u200c]/g, '').replace(/g/g, 'ɡ');
   const result = [];
   for (let i = 0; i < cleaned.length;) {
     if (/\s/.test(cleaned[i])) { i++; continue; }
-    const phone = labels.find(p => cleaned.startsWith(p.normalize('NFD'), i));
-    if (!phone) throw Error('Son français non pris en charge : ' + cleaned.slice(i, i + 2));
-    result.push({ phone, id: vocab[phone] }); i += phone.normalize('NFD').length;
+    // Multilingual labels such as eɑ must not consume the beginning of ɑ̃.
+    // A combining mark belongs to its vowel; splitting it caused French words
+    // such as océans and néanmoins to fail despite every sound being supported.
+    const match = labels.find(p => cleaned.startsWith(p.normalized, i)
+      && !/\p{M}/u.test(cleaned[i + p.normalized.length] || ''));
+    if (!match) throw Error('Son français non pris en charge : ' + cleaned.slice(i, i + 2));
+    result.push({ phone: match.phone, id: vocab[match.phone] }); i += match.normalized.length;
   }
   return result;
 }

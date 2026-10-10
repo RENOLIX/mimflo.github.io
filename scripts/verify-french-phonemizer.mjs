@@ -8,11 +8,24 @@ globalThis.__dirname=path.resolve('public/phonetics/vendor');
 const {frenchPhones}=await import('../public/phonetics/g2p.mjs');
 const vendor=path.resolve('public/phonetics/vendor');
 const data=fs.readFileSync(path.join(vendor,'piper_phonemize.data'));
-const options={locateFile:f=>path.join(vendor,f),printErr:console.error,wasmBinary:fs.readFileSync(path.join(vendor,'piper_phonemize.wasm')),getPreloadedPackage:()=>data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength)};
+let runtimeLoads=0;
+const options={locateFile:f=>path.join(vendor,f),printErr:console.error,wasmBinary:fs.readFileSync(path.join(vendor,'piper_phonemize.wasm')),getPreloadedPackage:()=>{runtimeLoads++;return data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength)}};
 const vocab=await(await fetch(`https://huggingface.co/${MODEL}/resolve/${REVISION}/vocab.json`)).json();
 const reference=Array(100).fill('Nous apprenons le français ensemble. Les amis lisent un article chaque matin.').join(' ');
 const phones=await frenchPhones(reference,vocab,options);
 assert.ok(phones.length>3000);assert.equal(phones[0].wordIndex,0);assert.equal(phones.at(-1).wordIndex,1199);
 assert.ok(phones.every(phone=>phone.word&&Number.isInteger(phone.wordIndex)&&Number.isInteger(phone.id)));
 assert.deepEqual(await frenchPhones(reference,vocab,options),phones,'Repeated long conversions restore the WASM argument stack');
+assert.ok(runtimeLoads>1,'Long conversions recycle the fixed-heap phonemizer before accumulated CLI allocations exhaust it');
+for (const [word, expected] of [['océans',['o','s','e','ɑ̃']],['néanmoins',['n','e','ɑ̃','m','w','ɛ̃']]]) {
+  assert.deepEqual((await frenchPhones(word,vocab,options)).map(p=>p.phone),expected,`${word}: preserve the complete nasal vowel with the real model vocabulary`);
+}
+const trialMigration=fs.readFileSync('backend/migrations/0012_trial_environment.sql','utf8');
+const trialParagraphs=JSON.parse(trialMigration.match(/'(\["Un défi majeur[\s\S]*?\])'/)[1].replace(/''/g,"'"));
+const trialText=trialParagraphs.join('\n\n');
+const trialPhones=await frenchPhones(trialText,vocab,options);
+assert.ok(trialPhones.length>1500,'The complete offered environment article converts successfully');
+assert.equal(trialPhones.at(-1).wordIndex,[...trialText.matchAll(/[\p{L}\p{N}]+(?:[’'-][\p{L}\p{N}]+)*/gu)].length-1,'Conversion reaches the last word of the offered article');
+assert.ok(trialPhones.filter(p=>/océans|Néanmoins/i.test(p.word)).some(p=>p.phone==='ɑ̃'),'Regression article retains nasal sounds rather than discarding them');
 console.log('PASS: real French phonemizer processes 1200 words twice in the same runtime, with continuous word indexes and stable phone batches.');
+console.log('PASS: océans, néanmoins and the full environment trial article with the pinned model vocabulary.');

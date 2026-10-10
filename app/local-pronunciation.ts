@@ -3,7 +3,7 @@ let worker:Worker|null=null,idle:ReturnType<typeof setTimeout>|undefined;
 let rejectActive:(()=>void)|null=null;
 const results=new Map<string,LocalResult>();
 function releaseLater(){clearTimeout(idle);idle=setTimeout(()=>{if(!rejectActive){worker?.terminate();worker=null}},10*60000)}
-function getWorker(){clearTimeout(idle);return worker||(worker=new Worker('/phonetics/worker.mjs?v=8',{type:'module'}))}
+function getWorker(){clearTimeout(idle);return worker||(worker=new Worker('/phonetics/worker.mjs?v=9',{type:'module'}))}
 // Closing a finished report keeps the engine available for the next reading.
 // Cancellation still stops an active calculation immediately.
 export function cancelLocalPronunciation(){if(!rejectActive){if(worker)releaseLater();return;}const reject=rejectActive;rejectActive=null;worker?.terminate();worker=null;clearTimeout(idle);reject();}

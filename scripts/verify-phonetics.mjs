@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import {wavSamples,phonemeTokens,logSoftmaxRows,greedyPhones,alignPhones,ctcAlign,anchoredCtc,acousticAssessment,vocalTiming} from '../public/phonetics/core.mjs';
 const vocab={'<pad>':0,b:1,a:2,u:3,'ɑ̃':4},labels=['<pad>','b','a','u','ɑ̃'];
 assert.deepEqual(phonemeTokens('ˈbɑ̃',vocab).map(p=>p.id),[1,4],'Nasal vowel is one model token');
+const overlappingVocab={e:1,'ɑ̃':2,'eɑ':3,'n':4,'m':5,'w':6,'ɛ̃':7,'o':8,'s':9};
+assert.deepEqual(phonemeTokens('oseˈɑ̃',overlappingVocab).map(p=>p.phone),['o','s','e','ɑ̃'],'Océans must keep the nasal vowel intact');
+assert.deepEqual(phonemeTokens('neɑ̃mwˈɛ̃',overlappingVocab).map(p=>p.phone),['n','e','ɑ̃','m','w','ɛ̃'],'Néanmoins must not consume part of a nasal vowel');
+assert.deepEqual(phonemeTokens('ã',{'a':1,'ã':2}).map(p=>p.id),[2],'Precomposed nasal vowels normalize to a complete label');
+assert.throws(()=>phonemeTokens('ã',{'a':1}),/non pris en charge/,'Unknown nasal sounds cannot silently become oral vowels');
 function wav(){const b=new Uint8Array(32000+56),v=new DataView(b.buffer),s=(o,t)=>b.set(new TextEncoder().encode(t),o);s(0,'RIFF');v.setUint32(4,b.length-8,true);s(8,'WAVE');s(12,'JUNK');v.setUint32(16,4,true);s(24,'fmt ');v.setUint32(28,16,true);v.setUint16(32,1,true);v.setUint16(34,1,true);v.setUint32(36,16000,true);v.setUint16(46,16,true);s(48,'data');v.setUint32(52,32000,true);v.setInt16(56,16384,true);return b}
 assert.equal(wavSamples(wav()).length,16000);assert.equal(wavSamples(wav())[0],.5,'WAV extensions do not consume sample bytes');assert.throws(()=>wavSamples(wav().subarray(0,200)),/incomplet/);
 assert.throws(()=>vocalTiming(new Float32Array(48000)),/silencieux/);
