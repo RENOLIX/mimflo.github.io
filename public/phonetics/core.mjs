@@ -24,11 +24,13 @@ export function wavSamples(bytes) {
   return samples;
 }
 
+const labelCache = new WeakMap();
 export function phonemeTokens(ipa, vocab) {
   // Nasal vowels and affricates are indivisible labels in the model vocabulary.
-  const labels = Object.keys(vocab).filter(p => !/[<>|]/.test(p))
+  let labels = labelCache.get(vocab);
+  if (!labels) { labels = Object.keys(vocab).filter(p => !/[<>|]/.test(p))
     .map(phone => ({ phone, normalized: phone.normalize('NFD') }))
-    .sort((a, b) => b.normalized.length - a.normalized.length);
+    .sort((a, b) => b.normalized.length - a.normalized.length); labelCache.set(vocab, labels); }
   const cleaned = ipa.normalize('NFD').replace(/[ˈˌ.,!?;:ːˑ\-…\u200d\u200c]/g, '').replace(/g/g, 'ɡ');
   const result = [];
   for (let i = 0; i < cleaned.length;) {

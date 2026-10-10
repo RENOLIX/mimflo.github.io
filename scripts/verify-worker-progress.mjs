@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import {logSoftmaxRows} from '../public/phonetics/core.mjs';
+
+// Exercise the production worker protocol with deterministic acoustic tensors.
+// This validates progress, cache keys and disposal, not pronunciation accuracy.
+const source=(await fs.readFile('public/phonetics/worker.mjs','utf8')).replace(/^import .*;\r?\n/gm,'').replaceAll('import.meta.url',JSON.stringify(import.meta.url));
+let updates=[],inferences=0,phonemizations=0,disposed=0,loadCallback,releaseModel;
+const loading=new Promise(resolve=>releaseModel=resolve);
+const self={postMessage:message=>updates.push(message)};
+const env={backends:{onnx:{wasm:{}}}};
+const model=async input=>{inferences++;const frames=Math.floor((input.length-400)/320)+1;return {logits:{dims:[1,frames,2],data:new Float32Array(frames*2),dispose(){disposed++}}}};
+const AutoModelForCTC={from_pretrained:async(_,options)=>{loadCallback=options.progress_callback;await loading;return model}};
+const AutoProcessor={from_pretrained:async()=>async samples=>({length:samples.length,tensor:{dispose(){disposed++}}})};
+const fetch=async()=>({ok:true,json:async()=>({'<pad>':0,a:1})});
+const frenchPhones=async(reference,_,options)=>{phonemizations++;options.onProgress(1);return reference};
+const acousticAssessment=({logp,frames,width,reference})=>{assert.equal(logp.length,frames*width);assert.ok(logp.every(Number.isFinite));return {reference,frames}};
+const run=new Function('self','env','AutoModelForCTC','AutoProcessor','fetch','MODEL','REVISION','wavSamples','vocalTiming','frenchPhones','logSoftmaxRows','acousticAssessment',source);
+run(self,env,AutoModelForCTC,AutoProcessor,fetch,'test','test',bytes=>new Float32Array(bytes[0]*16000),()=>{},frenchPhones,logSoftmaxRows,acousticAssessment);
+const warming=self.onmessage({data:{type:'prepare'}});
+await new Promise(resolve=>setImmediate(resolve));
+const first=self.onmessage({data:{type:'analyse',id:'first',wav:new Uint8Array([30]).buffer,audioHash:'audio-a',reference:'Bonjour'}});
+await new Promise(resolve=>setImmediate(resolve));
+loadCallback({status:'progress',file:'model_quantized.onnx',progress:50});
+assert.ok(updates.some(p=>p.id==='first'&&p.percent===15),'A pending warm-up reports download progress to the active recording');
+releaseModel();await Promise.all([warming,first]);
+assert.equal(inferences,5);assert.equal(disposed,10);
+assert.ok(updates.some(p=>p.phase==='analysing'&&p.remainingSeconds>0));
+assert.equal(updates.at(-1).type,'result');
+const percent=updates.filter(p=>p.type==='progress').map(p=>p.percent);
+assert.ok(percent.every((p,i)=>!i||p>=percent[i-1]));
+assert.equal(percent.at(-1),97);
+updates=[];
+await self.onmessage({data:{type:'analyse',id:'second',wav:new Uint8Array([30]).buffer,audioHash:'audio-a',reference:'Autre départ'}});
+assert.equal(inferences,5,'Changing the text reuses acoustic measurements for the identical audio');
+assert.equal(phonemizations,2);assert.equal(updates.at(-1).result.reference,'Autre départ');
+await self.onmessage({data:{type:'analyse',id:'third',wav:new Uint8Array([30]).buffer,audioHash:'audio-b',reference:'Autre départ'}});
+assert.equal(inferences,10,'A different recording must run real inference');assert.equal(phonemizations,2);
+self.navigator={deviceMemory:8};
+await self.onmessage({data:{type:'analyse',id:'long',wav:new Uint8Array([240]).buffer,audioHash:'audio-long',reference:'Autre départ'}});
+assert.equal(inferences,30,'A memory-rich device uses twenty complete windows for four-minute audio');
+assert.equal(updates.at(-1).result.frames,11999);
+console.log('PASS: warm-up routing, actual block progress, ETA, cache separation, tensor disposal and complete four-minute framing. Inference mocked.');
