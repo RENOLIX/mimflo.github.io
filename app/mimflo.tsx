@@ -21,6 +21,7 @@ import {adminHref} from './admin-url';
 import ProfileSidebar from './profile-sidebar';
 import MemberWelcome from './member-welcome';
 import PasswordPanel from './password-panel';
+import {prepareLocalPronunciation} from './local-pronunciation';
 import './members.css';
 const navs=[['accueil','Accueil'],['bibliotheque','Bibliothèque'],['parcours','Mes parcours'],['progression','Ma progression'],['notes','Mes notes'],['packs','Abonnements']];
 const allViews=['accueil','bibliotheque','parcours','progression','notes','profil','inscription','essai','article','aide','admin','abonnement','verification','checkout','commande','bienvenue'];
@@ -35,6 +36,7 @@ function SavedRecording({id}:{id:string}){
  return url?<audio className="saved-recording" controls preload="metadata" src={url}/>:<span className="muted small">Audio disponible sur l’appareil utilisé pour l’enregistrement.</span>;
 }
 export default function MimFlo({initialHash}:{initialHash?:string}){
+ useEffect(()=>{prepareLocalPronunciation()},[]);
  const [initialRoute]=useState(()=>initialHash===undefined?null:routeFromHash(initialHash));
  const [view,setView]=useState(initialRoute?.view||'loading'),[articleId,setArticleId]=useState(initialRoute?.articleId||'reseaux'),[account,setAccount]=useState<any>(emptyAccount),[loading,setLoading]=useState(true),[loadError,setLoadError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[menu,setMenu]=useState(false);
  const [category,setCategory]=useState('Tous les articles'),[query,setQuery]=useState(''),[selectedPlan,setSelectedPlan]=useState('intensif'),[word,setWord]=useState(''),[definition,setDefinition]=useState(''),[tick,setTick]=useState(Date.now());
