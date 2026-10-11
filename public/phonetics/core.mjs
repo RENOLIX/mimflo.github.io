@@ -219,7 +219,10 @@ export function acousticAssessment({ logp, frames, width, expected, labels, samp
     for (const t of usedFrames) {
       const at = t * width; let alternative = -Infinity;
       for (let c = 1; c < width; c++) if (c !== target.id) alternative = Math.max(alternative, logp[at + c]);
-      posterior += Math.exp(logp[at + target.id]); margin += logp[at + target.id] - alternative;
+      // CTC blank is an alignment symbol, not a competing pronunciation.
+      let phoneMass = 0;
+      for (let c = 1; c < width; c++) phoneMass += Math.exp(logp[at + c]);
+      posterior += Math.exp(logp[at + target.id]) / Math.max(Number.MIN_VALUE, phoneMass); margin += logp[at + target.id] - alternative;
     }
     return { expected: target.phone, heard: detected.phone, word: target.word ?? null, wordIndex: target.wordIndex ?? null, status: pair.status, confidence: Math.round(posterior / usedFrames.length * 100), gop: Math.round(margin / usedFrames.length * 100) / 100, start: Math.round(detected.startFrame * frameSeconds * 100) / 100, end: Math.min(seconds, Math.round(detected.endFrame * frameSeconds * 100) / 100) };
   });
@@ -235,5 +238,5 @@ export function acousticAssessment({ logp, frames, width, expected, labels, samp
   if (timing.pauseCount) tips.push('Écoutez les pauses repérées et entraînez-vous à lire par groupes de mots. Les pauses de ponctuation restent naturelles.');
   if (timing.clipped || timing.noiseHigh) tips.push('Le son est saturé ou bruyant. Refaites la lecture dans un endroit calme avant de comparer les indices.');
   if (!tips.length) tips.push('Les sons attendus sont bien représentés dans cette lecture. Comparez plusieurs lectures du même passage.');
-  return { transcript: recognized, analysis: { version: 5, kind: KIND, provider: 'wav2vec2-lv60-phoneme-ctc', model: MODEL, revision: REVISION, method: 'CTC forced alignment + mean phone posterior + log posterior margin (GOP-style)', calibrated: false, score, pronunciationScore: score, accentScore: null, fluencyScore: null, phonemes: phones, matchedPercent: Math.round(matched / expected.length * 100), expectedPhonemes: expected.length, recognizedPhonemes: heard.length, seconds: Math.round(seconds * 100) / 100, timing: { ...timing, phonesPerSecond: Math.round(heard.length / Math.max(.2, timing.voicedSeconds) * 10) / 10 }, reference, tips, limitation: 'Indice acoustique expérimental : il mesure les probabilités du modèle phonétique et les sons manquants. Il n’est pas une note validée de prononciation. L’accent et la fluidité ne sont pas calibrés ; aucune équivalence avec Azure ni niveau CECRL n’est établi.' } };
+  return { transcript: recognized, analysis: { version: 5, kind: KIND, provider: 'wav2vec2-lv60-phoneme-ctc', model: MODEL, revision: REVISION, method: 'CTC forced alignment + mean non-blank phone posterior + log posterior margin (GOP-style)', calibrated: false, score, pronunciationScore: score, accentScore: null, fluencyScore: null, phonemes: phones, matchedPercent: Math.round(matched / expected.length * 100), expectedPhonemes: expected.length, recognizedPhonemes: heard.length, seconds: Math.round(seconds * 100) / 100, timing: { ...timing, phonesPerSecond: Math.round(heard.length / Math.max(.2, timing.voicedSeconds) * 10) / 10 }, reference, tips, limitation: 'Indice acoustique expérimental : il mesure les probabilités du modèle phonétique et les sons manquants. Il n’est pas une note validée de prononciation. L’accent et la fluidité ne sont pas calibrés ; aucune équivalence avec Azure ni niveau CECRL n’est établi.' } };
 }

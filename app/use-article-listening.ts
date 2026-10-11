@@ -5,9 +5,10 @@ import {speechSegments} from './speech-reading';
 
 export function useArticleListening(text:string,onError:(message:string)=>void){
  const [playing,setPlaying]=useState(false),[activeWord,setActiveWord]=useState<number|null>(null),[completed,setCompleted]=useState(false),[activeRange,setActiveRange]=useState<{first:number;last:number}|null>(null);
+ const [paused,setPaused]=useState(false);
  const [speed,setSpeedState]=useState(1.04);
  const generation=useRef(0),owned=useRef(false),utteranceRef=useRef<SpeechSynthesisUtterance|null>(null),requestRef=useRef<{from:number;to:number;whole:boolean}|{expression:string}|null>(null);
- function stop(){generation.current++;if(owned.current)window.speechSynthesis?.cancel();owned.current=false;setPlaying(false);setActiveWord(null);setActiveRange(null);utteranceRef.current=null;requestRef.current=null;}
+ function stop(){setPaused(false);generation.current++;if(owned.current)window.speechSynthesis?.cancel();owned.current=false;setPlaying(false);setActiveWord(null);setActiveRange(null);utteranceRef.current=null;requestRef.current=null;}
  useEffect(()=>()=>{generation.current++;if(owned.current)window.speechSynthesis?.cancel()},[]);
  function play(fromWord=0,toWord=readingWords(text).length,rate=speed,whole=fromWord===0&&toWord===readingWords(text).length){
   if(!window.speechSynthesis){onError('L’écoute n’est pas disponible dans ce navigateur.');return;}
@@ -15,7 +16,7 @@ export function useArticleListening(text:string,onError:(message:string)=>void){
   const voice=voices.find(v=>v.lang==='fr-FR'&&/Google|Natural|Online/i.test(v.name))||voices.find(v=>v.lang==='fr-FR')||voices[0];
   const words=readingWords(text),segments=speechSegments(text,fromWord,toWord);if(!segments.length)return;
   requestRef.current={from:fromWord,to:toWord,whole};
-  const run=++generation.current;owned.current=true;synth.cancel();setPlaying(true);
+  const run=++generation.current;owned.current=true;synth.cancel();setPaused(false);setPlaying(true);
   let cursor=0;
   function next(){
    if(generation.current!==run)return;
@@ -31,7 +32,9 @@ export function useArticleListening(text:string,onError:(message:string)=>void){
   }
   next();
  }
- function toggle(){if(playing)stop();else play();}
+ function pause(){if(!owned.current)return;window.speechSynthesis.pause();setPlaying(false);setPaused(true);}
+ function toggle(){if(playing)pause();else if(paused&&owned.current){window.speechSynthesis.resume();setPaused(false);setPlaying(true);}else play();}
+ function restart(){stop();play();}
  function playExpression(expression:string,rate=speed){
   const words=readingWords(text),parts=readingWords(expression),normalize=(word:string)=>word.toLocaleLowerCase('fr').replaceAll('’',"'");
   const at=words.findIndex((word,index)=>parts.every((part,offset)=>normalize(words[index+offset]?.text||'')===normalize(part.text)));
@@ -44,6 +47,6 @@ export function useArticleListening(text:string,onError:(message:string)=>void){
   utterance.onerror=()=>{if(generation.current===run){owned.current=false;setPlaying(false);onError('La voix française est indisponible. Réessayez l’écoute.')}};
   try{if(synth.paused)synth.resume();synth.speak(utterance)}catch{stop();onError('La voix française est indisponible. Réessayez l’écoute.')}
  }
- function setSpeed(value:number){if(![.8,1.04,1.3].includes(value))return;setSpeedState(value);const request=requestRef.current;if(!playing||!request)return;if('expression' in request)playExpression(request.expression,value);else play(activeWord??request.from,request.to,value,request.whole);}
- return {playing,activeWord,activeRange,completed,speed,setSpeed,toggle,stop,playRange:play,playExpression};
+ function setSpeed(value:number){if(![.8,1.04,1.3].includes(value))return;setSpeedState(value);const request=requestRef.current;if((!playing&&!paused)||!request)return;if('expression' in request)playExpression(request.expression,value);else play(activeWord??request.from,request.to,value,request.whole);}
+ return {playing,paused,pause,restart,activeWord,activeRange,completed,speed,setSpeed,toggle,stop,playRange:play,playExpression};
 }

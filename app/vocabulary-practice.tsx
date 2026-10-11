@@ -1,15 +1,15 @@
 'use client';
 import {createMicrophoneRecorder,type MicrophoneRecorder} from './microphone-recorder';
 import {useEffect,useRef,useState} from 'react';
-import {Mic,Square,Volume2,ArrowRight,RotateCcw,Trash2,Sparkles} from 'lucide-react';
+import {Mic,Square,Volume2,RotateCcw,Trash2,Sparkles} from 'lucide-react';
 import {audioToWav} from './audio-analysis';
 import {localPronunciation,prepareLocalPronunciation,cancelLocalPronunciation,type AnalysisProgress} from './local-pronunciation';
 import AnalysisLoadingOverlay from './analysis-loading-overlay';
 import {listVocabularyAttempts,saveVocabularyAttempt,deleteVocabularyAttempt,type VocabularyAttempt} from './vocabulary-practice-store';
 import {reportData,wordFeedback} from './reading-report-data';
 
-type Props={word:string;scope:string;definition:string;readingScore:number|null;disabled:boolean;locked:boolean;onBusy:(busy:boolean)=>void;onListen:()=>void;onChoose:()=>void};
-export default function VocabularyPractice({word,scope,definition,readingScore,disabled,locked,onBusy,onListen,onChoose}:Props){
+type Props={word:string;scope:string;definition:string;readingScore:number|null;disabled:boolean;locked:boolean;onBusy:(busy:boolean)=>void;onListen:()=>void};
+export default function VocabularyPractice({word,scope,definition,readingScore,disabled,locked,onBusy,onListen}:Props){
  const [stage,setStage]=useState<'idle'|'starting'|'recording'|'analysing'>('idle'),[open,setOpen]=useState(false),[attempts,setAttempts]=useState<VocabularyAttempt[]>([]),[selected,setSelected]=useState<string|null>(null),[message,setMessage]=useState(''),[audioUrl,setAudioUrl]=useState(''),[progress,setProgress]=useState<AnalysisProgress>({percent:0,phase:'preparing'});
  const mounted=useRef(true),run=useRef(0),busy=useRef(false),recorder=useRef<MicrophoneRecorder|null>(null),stream=useRef<MediaStream|null>(null),player=useRef<HTMLAudioElement|null>(null),timer=useRef<ReturnType<typeof setTimeout>|null>(null),began=useRef(0);
  const current=attempts.find(a=>a.id===selected)||attempts[0],latestScore=attempts.find(a=>a.analysis)?.analysis.score??null;
@@ -42,7 +42,6 @@ export default function VocabularyPractice({word,scope,definition,readingScore,d
   <div className="training-word-row"><div className="training-word-description"><strong>{word}</strong><small>{definition}</small></div>
    <button disabled={inactive} onClick={onListen} aria-label={'Écouter le mot '+word}><Volume2 size={16}/><span>Écouter</span></button>
    <button className="training-word-repeat" disabled={disabled||locked||stage==='starting'||stage==='analysing'} onClick={stage==='recording'?stop:start} aria-label={(stage==='recording'?'Arrêter la répétition de ':'Répéter le mot ')+word}>{stage==='recording'?<Square size={15}/>:<RotateCcw size={15}/>}<span>{stage==='recording'?'Arrêter':'Répéter'}</span></button>
-   <button disabled={inactive} onClick={onChoose} aria-label={'Lire depuis le mot '+word}><ArrowRight size={15}/><span>Lire ici</span></button>
    <div className="training-word-scores"><span title="Score de ce mot dans la lecture de l’article">Lecture <b>{readingScore===null?'—':Math.round(readingScore)}</b></span><button disabled={stage!=='idle'} onClick={()=>setOpen(!open)} aria-expanded={open} aria-label={'Voir mes répétitions de '+word}>Répétition <b>{latestScore===null?'—':Math.round(latestScore)}</b></button></div>
   </div>
   {open&&<div className="training-word-practice"><div className="training-word-practice-heading"><strong>À vous : « {word} »</strong><span>Votre voix et vos résultats restent sur cet appareil.</span></div>

@@ -1,5 +1,5 @@
 import { AutoModelForCTC, AutoProcessor, env } from './vendor/transformers.min.js';
-import { MODEL, REVISION, wavSamples, logSoftmaxRows, acousticAssessment, vocalTiming } from './core.mjs?v=10';
+import { MODEL, REVISION, wavSamples, logSoftmaxRows, acousticAssessment, vocalTiming } from './core.mjs?v=11';
 import { frenchPhones } from './g2p.mjs?v=10';
 
 env.allowLocalModels = false;

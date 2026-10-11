@@ -28,3 +28,11 @@ for(let i=0;i<2900;i++){const t=i*10+4,id=i%2+1;longLogp[t*3]=-20;longLogp[t*3+i
 const longSpans=anchoredCtc(longLogp,longFrames,3,longExpected.map((_,i)=>({expectedIndex:i,heardIndex:i})),longExpected,longHeard);
 assert.equal(longSpans.length,2900);assert.ok(longSpans.every(s=>s?.frames.length),'A ten-minute alignment remains bounded and complete');
 console.log('PASS: WAV chunks, nasal tokens, silence, CTC repeated sounds, acoustic discrimination, partial readings and uncalibrated metrics.');
+
+// Blank posterior must not penalize an otherwise identical sound distribution.
+const blankHeavy = new Float32Array(logp.length);
+for(let t=0;t<frames;t++) { if(sequence[t]===0){for(let c=0;c<width;c++)blankHeavy[t*width+c]=logp[t*width+c];continue;} let mass=0; for(let c=1;c<width;c++) mass+=Math.exp(logp[t*width+c]); for(let c=1;c<width;c++) blankHeavy[t*width+c]=Math.log(Math.exp(logp[t*width+c])/mass*.6); blankHeavy[t*width]=Math.log(.4); }
+const noBlank=Float32Array.from(blankHeavy);
+for(let t=0;t<frames;t++){if(sequence[t]===0)continue;noBlank[t*width]=-30;for(let c=1;c<width;c++)noBlank[t*width+c]-=Math.log(.6);}
+const blankScore=p=>acousticAssessment({logp:p,frames,width,expected:[1,2,1].map(id=>({id,phone:labels[id],word:'test'})),labels,samples,reference:'test'}).analysis.score;
+assert.equal(blankScore(blankHeavy),blankScore(noBlank),'CTC blank mass does not lower the phone score');
