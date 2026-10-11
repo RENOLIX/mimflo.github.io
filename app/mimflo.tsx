@@ -41,8 +41,16 @@ export default function MimFlo({initialHash}:{initialHash?:string}){
  const [initialRoute]=useState(()=>initialHash===undefined?null:routeFromHash(initialHash));
  const [view,setView]=useState(initialRoute?.view||'loading'),[articleId,setArticleId]=useState(initialRoute?.articleId||'reseaux'),[account,setAccount]=useState<any>(emptyAccount),[loading,setLoading]=useState(true),[loadError,setLoadError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[menu,setMenu]=useState(false);
  const [category,setCategory]=useState('Tous les articles'),[query,setQuery]=useState(''),[selectedPlan,setSelectedPlan]=useState('intensif'),[word,setWord]=useState(''),[definition,setDefinition]=useState(''),[tick,setTick]=useState(Date.now());
- // Warm up only after the account has loaded, never during sign-up on mobile.
- useEffect(()=>{if(loading||!account.user||view!=='article')return;const timer=setTimeout(()=>prepareLocalPronunciation(),1500);return()=>clearTimeout(timer)},[loading,account.user?.id,view]);
+ // Prepare the local model after the first screen is usable. It runs in the background,
+ // so sign-up stays immediate while later analyses can start without downloading first.
+ useEffect(()=>{
+  if(loading||view==='admin')return;
+  let cancelled=false;
+  const start=()=>{if(!cancelled)prepareLocalPronunciation()};
+  const idle=(window as any).requestIdleCallback;
+  const handle=idle?idle(start,{timeout:2500}):window.setTimeout(start,1200);
+  return()=>{cancelled=true;if(idle)(window as any).cancelIdleCallback(handle);else window.clearTimeout(handle)};
+ },[loading,view]);
  const [pendingIntent,setPendingIntent]=useState('');
  const [authMode,setAuthMode]=useState<'register'|'login'>('register');
  useEffect(()=>{if(view!=='inscription'&&view!=='profil')setAuthMode('register')},[view]);
