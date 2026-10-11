@@ -23,3 +23,13 @@
  .training-word-practice-actions>button:last-child{margin-left:0}
  .training-word-recording button{width:auto;margin-left:auto}
 }
+@media(max-width:380px){
+ .training-word-row{grid-template-columns:repeat(2,minmax(0,1fr));padding:10px;gap:7px}
+ .training-word-description{grid-column:1;grid-row:1}
+ .training-word-scores{grid-column:2;min-width:0}
+ .training-word-row>button:nth-of-type(1){grid-column:1}
+ .training-word-row>button:nth-of-type(2){grid-column:2}
+ .training-word-row>button{padding:8px 6px;font-size:11px;gap:4px}
+ .footer-identity{flex-wrap:wrap}
+ .footer-identity .handwriting{max-width:100%;transform:none}
+}
