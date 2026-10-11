@@ -3,11 +3,18 @@ const tokenKey='mimflo-member-token';
 export function setMemberToken(token:string){sessionStorage.setItem(tokenKey,token);}
 export function clearMemberToken(){sessionStorage.removeItem(tokenKey);}
 export async function memberRequest(path:string,body?:any){
+ // Retry read-only network failures once; never replay account/payment mutations.
+ try{return await requestOnce(path,body)}catch(error:any){
+  if(body!==undefined||!error?.networkFailure)throw error;
+  return requestOnce(path);
+ }
+}
+async function requestOnce(path:string,body?:any){
  if(!memberApi)throw new Error('La connexion est en cours de configuration. Réessayez bientôt.');
- const token=sessionStorage.getItem(tokenKey),controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+ const token=sessionStorage.getItem(tokenKey),controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),body?20000:8000);
  try{const r=await fetch(memberApi+path,{method:body?'POST':'GET',headers:{...(body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store',signal:controller.signal});
  const data:any=await r.json();if(!r.ok){if(r.status===401)clearMemberToken();throw new Error(data.error||'Le service est indisponible.');}return data;
- }catch(e:any){if(controller.signal.aborted)throw new Error('Le serveur ne répond pas. Vérifiez votre connexion et réessayez.');throw e;}finally{clearTimeout(timeout);}
+ }catch(e:any){if(controller.signal.aborted||e instanceof TypeError){const failure=Object.assign(new Error('La connexion au serveur a été interrompue. Réessayez ; si cela persiste, essayez le Wi-Fi ou les données mobiles.'),{networkFailure:true});throw failure;}throw e;}finally{clearTimeout(timeout);}
 }
 export async function memberAudioRequest(id:string,articleId:string,audio:Uint8Array,passageIndex:number){
  if(!memberApi)throw new Error('L’analyse IA est en cours de configuration.');
