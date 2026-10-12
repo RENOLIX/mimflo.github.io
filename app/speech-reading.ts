@@ -12,3 +12,10 @@ export function speechSegments(text:string,fromWord=0,toWord=readingWords(text).
  }
  return segments;
 }
+
+// Network voices frequently omit word-boundary events. Speaking one word at a
+// time gives those voices a real start event for every highlighted/resume word.
+export function speechWordSegments(text:string,fromWord=0,toWord=readingWords(text).length){
+ const words=readingWords(text),limit=Math.min(toWord,words.length);
+ return words.slice(Math.max(0,fromWord),limit).map((word,offset)=>{const first=Math.max(0,fromWord)+offset;return {first,last:first+1,start:word.start,text:text.slice(word.start,words[first+1]?.start??text.length).trimEnd()}});
+}

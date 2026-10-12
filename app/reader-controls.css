@@ -58,3 +58,5 @@
  .reader-resume>.text-link{min-height:44px;padding:8px 0;text-align:left;line-height:1.5}
  .reader-studio .btn,.reader-complete-article .reading-ai-panel .btn{min-height:44px;font-size:12px;line-height:1.4;white-space:normal;padding:10px 14px;max-width:100%;border-radius:12px}
 }
+
+.reader-follow-text .reader-word.speaking{background:#dff3e6;color:#365f48;box-shadow:0 2px 0 #9bcdb0}.reader-follow-text .reader-word.speaking-word{background:#ffe1e6;color:#b32948;box-shadow:0 2px 0 #ed8299;font-weight:800}

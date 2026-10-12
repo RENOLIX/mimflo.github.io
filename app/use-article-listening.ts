@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {readingWords} from './reading-flow';
-import {speechSegments} from './speech-reading';
+import {speechSegments,speechWordSegments} from './speech-reading';
 
 export function useArticleListening(text:string,onError:(message:string)=>void){
  const [playing,setPlaying]=useState(false),[activeWord,setActiveWord]=useState<number|null>(null),[completed,setCompleted]=useState(false),[activeRange,setActiveRange]=useState<{first:number;last:number}|null>(null);
@@ -14,8 +14,8 @@ export function useArticleListening(text:string,onError:(message:string)=>void){
  function play(fromWord=0,toWord=readingWords(text).length,rate=speed,whole=fromWord===0&&toWord===readingWords(text).length){
   if(!window.speechSynthesis){onError('L’écoute n’est pas disponible dans ce navigateur.');return;}
   const synth=window.speechSynthesis,voices=synth.getVoices().filter(voice=>voice.lang.startsWith('fr'));
-  const voice=voices.find(v=>v.lang==='fr-FR'&&/Google|Natural|Online/i.test(v.name))||voices.find(v=>v.lang==='fr-FR')||voices[0];
-  const words=readingWords(text),segments=speechSegments(text,fromWord,toWord);if(!segments.length)return;
+  const voice=voices.find(v=>v.lang==='fr-FR'&&v.localService)||voices.find(v=>v.lang.startsWith('fr')&&v.localService)||voices.find(v=>v.lang==='fr-FR')||voices[0];
+  const words=readingWords(text),phrases=speechSegments(text),segments=voice?.localService?speechSegments(text,fromWord,toWord):speechWordSegments(text,fromWord,toWord);if(!segments.length)return;
   requestRef.current={from:fromWord,to:toWord,whole};
   const run=++generation.current;owned.current=true;synth.cancel();setPaused(false);setPlaying(true);
   let cursor=0;
@@ -24,10 +24,10 @@ export function useArticleListening(text:string,onError:(message:string)=>void){
    if(cursor>=segments.length){owned.current=false;setPlaying(false);setActiveWord(null);setActiveRange(null);utteranceRef.current=null;requestRef.current=null;if(whole)setCompleted(true);return;}
    const {first,last,start,text:phrase}=segments[cursor++],utterance=new SpeechSynthesisUtterance(phrase);utteranceRef.current=utterance;
    utterance.lang='fr-FR';utterance.rate=rate;if(voice)utterance.voice=voice;
-   utterance.onstart=()=>{if(generation.current===run){resumeWord.current=first;setActiveWord(first);setActiveRange({first,last})}};
-   // Use real word events when available; otherwise highlight the spoken phrase.
-   utterance.onboundary=event=>{if(generation.current!==run||event.name==='sentence')return;const character=start+event.charIndex;let at=first;while(at+1<last&&words[at+1].start<=character)at++;resumeWord.current=at;setActiveWord(at);setActiveRange({first:at,last:at+1})};
-   utterance.onend=next;
+   const phraseRange=phrases.find(p=>first>=p.first&&first<p.last)||{first,last};
+   utterance.onstart=()=>{if(generation.current===run){resumeWord.current=first;setActiveWord(first);setActiveRange({first:phraseRange.first,last:phraseRange.last})}};
+   utterance.onboundary=event=>{if(generation.current!==run||event.name==='sentence')return;const character=start+event.charIndex;let at=first;while(at+1<last&&words[at+1].start<=character)at++;resumeWord.current=at;setActiveWord(at)};
+   utterance.onend=()=>{if(generation.current!==run)return;resumeWord.current=last;next()};
    utterance.onerror=event=>{if(generation.current!==run)return;owned.current=false;setPlaying(false);setActiveWord(null);setActiveRange(null);utteranceRef.current=null;if(event.error==='canceled'||event.error==='interrupted')return;onError('La lecture vocale a été interrompue. Réessayez dans un navigateur disposant d’une voix française.')};
    try{if(synth.paused)synth.resume();synth.speak(utterance);}catch{owned.current=false;setPlaying(false);setActiveWord(null);setActiveRange(null);utteranceRef.current=null;onError('La voix française est indisponible dans votre navigateur. Réessayez l’écoute.');}
   }
@@ -48,6 +48,6 @@ export function useArticleListening(text:string,onError:(message:string)=>void){
   utterance.onerror=()=>{if(generation.current===run){owned.current=false;setPlaying(false);onError('La voix française est indisponible. Réessayez l’écoute.')}};
   try{if(synth.paused)synth.resume();synth.speak(utterance)}catch{stop();onError('La voix française est indisponible. Réessayez l’écoute.')}
  }
- function setSpeed(value:number){if(![.8,1.04,1.3].includes(value))return;setSpeedState(value);const request=requestRef.current;if((!playing&&!paused)||!request)return;if('expression' in request)playExpression(request.expression,value);else play(activeWord??request.from,request.to,value,request.whole);}
+ function setSpeed(value:number){if(![.8,1.04,1.3].includes(value))return;setSpeedState(value);const request=requestRef.current;if(!playing||!request)return;if('expression' in request)playExpression(request.expression,value);else play(resumeWord.current,request.to,value,request.whole);}
  return {playing,paused,pause,restart,activeWord,activeRange,completed,speed,setSpeed,toggle,stop,playRange:play,playExpression};
 }
