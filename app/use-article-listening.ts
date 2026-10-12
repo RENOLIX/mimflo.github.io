@@ -7,6 +7,7 @@ export function useArticleListening(text:string,onError:(message:string)=>void){
  const [playing,setPlaying]=useState(false),[activeWord,setActiveWord]=useState<number|null>(null),[completed,setCompleted]=useState(false),[activeRange,setActiveRange]=useState<{first:number;last:number}|null>(null);
  const [paused,setPaused]=useState(false);
  const [speed,setSpeedState]=useState(1.04);
+ const resumeWord=useRef(0);
  const generation=useRef(0),owned=useRef(false),utteranceRef=useRef<SpeechSynthesisUtterance|null>(null),requestRef=useRef<{from:number;to:number;whole:boolean}|{expression:string}|null>(null);
  function stop(){setPaused(false);generation.current++;if(owned.current)window.speechSynthesis?.cancel();owned.current=false;setPlaying(false);setActiveWord(null);setActiveRange(null);utteranceRef.current=null;requestRef.current=null;}
  useEffect(()=>()=>{generation.current++;if(owned.current)window.speechSynthesis?.cancel()},[]);
@@ -23,17 +24,17 @@ export function useArticleListening(text:string,onError:(message:string)=>void){
    if(cursor>=segments.length){owned.current=false;setPlaying(false);setActiveWord(null);setActiveRange(null);utteranceRef.current=null;requestRef.current=null;if(whole)setCompleted(true);return;}
    const {first,last,start,text:phrase}=segments[cursor++],utterance=new SpeechSynthesisUtterance(phrase);utteranceRef.current=utterance;
    utterance.lang='fr-FR';utterance.rate=rate;if(voice)utterance.voice=voice;
-   utterance.onstart=()=>{if(generation.current===run){setActiveWord(first);setActiveRange({first,last})}};
+   utterance.onstart=()=>{if(generation.current===run){resumeWord.current=first;setActiveWord(first);setActiveRange({first,last})}};
    // Use real word events when available; otherwise highlight the spoken phrase.
-   utterance.onboundary=event=>{if(generation.current!==run||event.name==='sentence')return;const character=start+event.charIndex;let at=first;while(at+1<last&&words[at+1].start<=character)at++;setActiveWord(at);setActiveRange({first:at,last:at+1})};
+   utterance.onboundary=event=>{if(generation.current!==run||event.name==='sentence')return;const character=start+event.charIndex;let at=first;while(at+1<last&&words[at+1].start<=character)at++;resumeWord.current=at;setActiveWord(at);setActiveRange({first:at,last:at+1})};
    utterance.onend=next;
    utterance.onerror=event=>{if(generation.current!==run)return;owned.current=false;setPlaying(false);setActiveWord(null);setActiveRange(null);utteranceRef.current=null;if(event.error==='canceled'||event.error==='interrupted')return;onError('La lecture vocale a été interrompue. Réessayez dans un navigateur disposant d’une voix française.')};
    try{if(synth.paused)synth.resume();synth.speak(utterance);}catch{owned.current=false;setPlaying(false);setActiveWord(null);setActiveRange(null);utteranceRef.current=null;onError('La voix française est indisponible dans votre navigateur. Réessayez l’écoute.');}
   }
   next();
  }
- function pause(){if(!owned.current)return;window.speechSynthesis.pause();setPlaying(false);setPaused(true);}
- function toggle(){if(playing)pause();else if(paused&&owned.current){window.speechSynthesis.resume();setPaused(false);setPlaying(true);}else play();}
+ function pause(){if(!owned.current)return;generation.current++;window.speechSynthesis.cancel();utteranceRef.current=null;setPlaying(false);setPaused(true);}
+ function toggle(){if(playing)pause();else if(paused&&owned.current){const request=requestRef.current;if(request&&'expression' in request)playExpression(request.expression);else if(request)play(resumeWord.current,request.to,speed,request.whole);else play();}else play();}
  function restart(){stop();play();}
  function playExpression(expression:string,rate=speed){
   const words=readingWords(text),parts=readingWords(expression),normalize=(word:string)=>word.toLocaleLowerCase('fr').replaceAll('’',"'");
