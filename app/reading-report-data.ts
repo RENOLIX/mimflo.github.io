@@ -53,3 +53,11 @@ export function wordFeedback(word:ReportWord){
  const weak=word.phones.find(p=>(p.confidence??0)<55);
  return weak?`Réécoutez ${soundDescription(weak.expected)}. Répétez le mot dans un endroit calme : la qualité de l’enregistrement peut aussi expliquer cet écart.`:'Écoutez le mot puis répétez-le dans sa phrase.';
 }
+
+export function repetitionFeedback(analysis:any){
+ const seen=new Set<string>();
+ return reportData(analysis).practice.sort((a,b)=>(a.confidence??0)-(b.confidence??0)).filter(word=>{const label=key(word.text);if(seen.has(label))return false;seen.add(label);return true}).slice(0,3).map(word=>{
+  const phone=word.phones.find(p=>p.status==='different')||word.phones.find(p=>p.status==='missing')||word.phones.find(p=>(p.confidence??0)<55);
+  return {word:word.text,advice:word.status==='missing'?'Mot non reconnu : réécoutez puis répétez.':phone?`À travailler : ${soundDescription(phone.expected)}.`:'Répétez ce mot plus distinctement.'};
+ });
+}
