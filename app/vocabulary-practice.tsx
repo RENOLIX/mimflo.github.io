@@ -8,8 +8,8 @@ import AnalysisLoadingOverlay from './analysis-loading-overlay';
 import {listVocabularyAttempts,saveVocabularyAttempt,deleteVocabularyAttempt,type VocabularyAttempt} from './vocabulary-practice-store';
 import {reportData,wordFeedback} from './reading-report-data';
 
-type Props={word:string;scope:string;definition:string;readingScore:number|null;disabled:boolean;locked:boolean;onBusy:(busy:boolean)=>void;onListen:()=>void};
-export default function VocabularyPractice({word,scope,definition,readingScore,disabled,locked,onBusy,onListen}:Props){
+type Props={phrase?:boolean;word:string;scope:string;definition:string;readingScore:number|null;disabled:boolean;locked:boolean;onBusy:(busy:boolean)=>void;onListen:()=>void};
+export default function VocabularyPractice({phrase=false,word,scope,definition,readingScore,disabled,locked,onBusy,onListen}:Props){
  const [stage,setStage]=useState<'idle'|'starting'|'recording'|'analysing'>('idle'),[open,setOpen]=useState(false),[attempts,setAttempts]=useState<VocabularyAttempt[]>([]),[selected,setSelected]=useState<string|null>(null),[message,setMessage]=useState(''),[audioUrl,setAudioUrl]=useState(''),[progress,setProgress]=useState<AnalysisProgress>({percent:0,phase:'preparing'});
  const mounted=useRef(true),run=useRef(0),busy=useRef(false),recorder=useRef<MicrophoneRecorder|null>(null),stream=useRef<MediaStream|null>(null),player=useRef<HTMLAudioElement|null>(null),timer=useRef<ReturnType<typeof setTimeout>|null>(null),began=useRef(0);
  const current=attempts.find(a=>a.id===selected)||attempts[0],latestScore=attempts.find(a=>a.analysis)?.analysis.score??null;
@@ -21,7 +21,7 @@ export default function VocabularyPractice({word,scope,definition,readingScore,d
  async function persist(attempt:VocabularyAttempt){try{await saveVocabularyAttempt(attempt)}catch{if(mounted.current)setMessage('Votre répétition reste disponible dans cette page. Le stockage de cet appareil est indisponible.')}}
  async function analyse(attempt:VocabularyAttempt,operation=++run.current){
   lock(true);setStage('analysing');setProgress({percent:0,phase:'preparing'});setMessage('');
-  try{const wav=await audioToWav(attempt.blob,30,.3);if(!mounted.current||operation!==run.current)return;const result=await localPronunciation(wav,word,attempt.seconds,setProgress,false,{wordPractice:true});if(!mounted.current||operation!==run.current)return;const measured={...attempt,analysis:result.analysis};update(measured);await persist(measured);if(mounted.current&&operation===run.current)setProgress({percent:100,phase:'done'});
+  try{const wav=await audioToWav(attempt.blob,30,.3);if(!mounted.current||operation!==run.current)return;const result=await localPronunciation(wav,word,attempt.seconds,setProgress,false,{wordPractice:!phrase});if(!mounted.current||operation!==run.current)return;const measured={...attempt,analysis:result.analysis};update(measured);await persist(measured);if(mounted.current&&operation===run.current)setProgress({percent:100,phase:'done'});
   }catch(e:any){if(mounted.current&&operation===run.current)setMessage(e.message)}finally{if(mounted.current&&operation===run.current){setStage('idle');lock(false)}}
  }
  async function start(){
@@ -40,13 +40,13 @@ export default function VocabularyPractice({word,scope,definition,readingScore,d
  const feedback=current?.analysis?reportData(current.analysis).words.map(wordFeedback):[];
  return <div className={'training-vocabulary-item'+(stage==='recording'?' is-recording':'')}>
   <div className="training-word-row"><div className="training-word-description"><strong>{word}</strong><small>{definition}</small></div>
-   <button disabled={inactive} onClick={onListen} aria-label={'Écouter le mot '+word}><Volume2 size={16}/><span>Écouter</span></button>
-   <button className="training-word-repeat" disabled={disabled||locked||stage==='starting'||stage==='analysing'} onClick={stage==='recording'?stop:start} aria-label={(stage==='recording'?'Arrêter la répétition de ':'Répéter le mot ')+word}>{stage==='recording'?<Square size={15}/>:<RotateCcw size={15}/>}<span>{stage==='recording'?'Arrêter':'Répéter'}</span></button>
+   <button disabled={inactive} onClick={onListen} aria-label={(phrase?'Écouter la phrase ':'Écouter le mot ')+word}><Volume2 size={16}/><span>Écouter</span></button>
+   <button className="training-word-repeat" disabled={disabled||locked||stage==='starting'||stage==='analysing'} onClick={stage==='recording'?stop:start} aria-label={(stage==='recording'?'Arrêter la répétition de ':'Répéter le mot ')+word}>{stage==='recording'?<Square size={15}/>:<RotateCcw size={15}/>}<span>{stage==='recording'?'Arrêter':phrase?'Enregistrer':'Répéter'}</span></button>
    <div className="training-word-scores"><span title="Score de ce mot dans la lecture de l’article">Lecture <b>{readingScore===null?'—':Math.round(readingScore)}</b></span><button disabled={stage!=='idle'} onClick={()=>setOpen(!open)} aria-expanded={open} aria-label={'Voir mes répétitions de '+word}>Répétition <b>{latestScore===null?'—':Math.round(latestScore)}</b></button></div>
   </div>
   {open&&<div className="training-word-practice"><div className="training-word-practice-heading"><strong>À vous : « {word} »</strong><span>Votre voix et vos résultats restent sur cet appareil.</span></div>
    {stage==='starting'&&<p role="status">Autorisez votre microphone…</p>}
-   {stage==='recording'&&<div className="training-word-recording"><span/><p>Répétez le mot, puis arrêtez pour recevoir votre score.</p><button onClick={stop}><Square size={14}/>Arrêter et analyser</button></div>}
+   {stage==='recording'&&<div className="training-word-recording"><span/><p>{phrase?'Lisez la phrase, puis arrêtez pour recevoir votre score.':'Répétez le mot, puis arrêtez pour recevoir votre score.'}</p><button onClick={stop}><Square size={14}/>Arrêter et analyser</button></div>}
    {stage==='idle'&&current&&<><div className="training-word-result"><div><small>Score de cette répétition</small><strong>{current.analysis?Math.round(current.analysis.score):'—'}<span>/100</span></strong></div><audio ref={player} controls preload="metadata" src={audioUrl} aria-label={'Écouter ma répétition de '+word}/></div>{feedback.length>0&&<p className="training-word-feedback">{feedback.join(' ')}</p>}<div className="training-word-practice-actions"><button disabled={disabled||locked} onClick={start}><Mic size={14}/>Répéter à nouveau</button>{!current.analysis&&<button disabled={disabled||locked} onClick={()=>analyse(current)}><Sparkles size={14}/>Analyser ma répétition</button>}<button onClick={()=>remove(current.id)}><Trash2 size={14}/>Supprimer</button></div></>}
    {attempts.length>1&&stage==='idle'&&<div className="training-word-history" aria-label={'Historique des répétitions de '+word}>{attempts.map((attempt,index)=><button key={attempt.id} className={current?.id===attempt.id?'selected':''} onClick={()=>setSelected(attempt.id)}><span>Essai {attempts.length-index}</span><b>{attempt.analysis?Math.round(attempt.analysis.score)+'/100':'À analyser'}</b></button>)}</div>}
    {message&&<p className="notice" role="status">{message}</p>}

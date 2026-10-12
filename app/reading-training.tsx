@@ -28,3 +28,9 @@ export function TrainingExercises({text,analysis,vocabulary,onListen,disabled,pr
  <p className="muted small">Comparez le score du mot dans votre lecture avec celui de vos répétitions.</p>
  </section></div>;
 }
+
+export function PronunciationPhrases({phrases,onListen,disabled,scope,onBusy}:{phrases:{text:string;guide:string}[];onListen:(text:string)=>void;disabled:boolean;scope:string;onBusy:(busy:boolean)=>void}){
+ const [active,setActive]=useState<number|null>(null);
+ if(!phrases?.length)return null;
+ return <section className="training-exercise pronunciation-phrases"><div className="training-section-title"><span>03</span><div><h2>Phrases de prononciation</h2><p>Travaillez l’intonation, le rythme et les liaisons.</p></div></div><div className="training-word-list">{phrases.map((p,index)=><VocabularyPractice phrase key={scope+p.text} word={p.text} definition={p.guide||'Écoutez la phrase, puis répétez-la à votre rythme.'} readingScore={null} scope={scope+':phrase:'+p.text} disabled={disabled} locked={active!==null&&active!==index} onBusy={busy=>{setActive(busy?index:null);onBusy(busy)}} onListen={()=>onListen(p.text)}/>)}</div><details className="training-glossary"><summary>Voir le guide de prononciation des phrases</summary>{phrases.map((p,i)=><p key={i} style={{marginTop:12,fontSize:13,lineHeight:1.7}}><strong>{i+1}. {p.text}</strong><br/>{p.guide||'Marquez les pauses de ponctuation et gardez les groupes de mots liés.'}</p>)}</details></section>
+}
