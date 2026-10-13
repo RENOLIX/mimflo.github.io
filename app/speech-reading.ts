@@ -13,9 +13,15 @@ export function speechSegments(text:string,fromWord=0,toWord=readingWords(text).
  return segments;
 }
 
-// Network voices frequently omit word-boundary events. Speaking one word at a
-// time gives those voices a real start event for every highlighted/resume word.
-export function speechWordSegments(text:string,fromWord=0,toWord=readingWords(text).length){
- const words=readingWords(text),limit=Math.min(toWord,words.length);
- return words.slice(Math.max(0,fromWord),limit).map((word,offset)=>{const first=Math.max(0,fromWord)+offset;return {first,last:first+1,start:word.start,text:text.slice(word.start,words[first+1]?.start??text.length).trimEnd()}});
+// Visual timing fallback only: never split the spoken sentence into words.
+// Real speech boundary events supersede these estimates whenever available.
+export function speechWordTimeline(text:string,first:number,last:number){
+ const words=readingWords(text);let units=0;
+ const timeline=words.slice(first,last).map((word,offset)=>{
+  const index=first+offset,at=units;
+  const punctuation=text.slice(word.end,words[index+1]?.start??text.length);
+  units+=Math.max(3,word.text.length)+1+(/[,:;]/.test(punctuation)?3:0);
+  return {index,at};
+ });
+ return {timeline,units};
 }
