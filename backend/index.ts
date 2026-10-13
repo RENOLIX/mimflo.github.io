@@ -183,8 +183,8 @@ async function route(request:Request,env:Env){const url=new URL(request.url),pat
    let entry;try{entry=await explainWord(env.AI,word,context)}catch{fail(503,'La fiche du mot n’a pas pu être complétée. Réessayez.');}
    if(b.action==='explainWord')return entry;
    const existing=await env.DB.prepare('SELECT id FROM notes WHERE user_id=? AND word=?').bind(user.id,word).first<Row>();const nid=existing?.id||id();
-   if(existing)await env.DB.prepare('UPDATE notes SET definition=?,category=?,example=?,translation=? WHERE id=? AND user_id=?').bind(entry.definition,entry.category,entry.example,'',nid,user.id).run();
-   else await env.DB.prepare('INSERT INTO notes(id,user_id,word,definition,created_at,category,translation,example) VALUES (?,?,?,?,?,?,?,?)').bind(nid,user.id,word,entry.definition,now(),entry.category,'',entry.example).run();
+   if(existing)await env.DB.prepare('UPDATE notes SET definition=?,category=?,example=?,translation=? WHERE id=? AND user_id=?').bind(entry.definition,entry.category,entry.example,entry.translation,nid,user.id).run();
+   else await env.DB.prepare('INSERT INTO notes(id,user_id,word,definition,created_at,category,translation,example) VALUES (?,?,?,?,?,?,?,?)').bind(nid,user.id,word,entry.definition,now(),entry.category,entry.translation,entry.example).run();
    return {ok:true,id:nid,...entry};
   }
   if(b.action==='note'){const word=text(b.word,100),definition=text(b.definition,1000);if(!word||!definition)fail(400,'Mot et définition requis.');const nid=text(b.id,50),category=text(b.category,40)||'Expression',translation=text(b.translation,1000),example=text(b.example,1000);if(nid){await env.DB.prepare('UPDATE notes SET word=?,definition=?,category=?,translation=?,example=? WHERE id=? AND user_id=?').bind(word,definition,category,translation,example,nid,user.id).run()}else{await env.DB.prepare('INSERT INTO notes(id,user_id,word,definition,created_at,category,translation,example) VALUES (?,?,?,?,?,?,?,?)').bind(id(),user.id,word,definition,now(),category,translation,example).run()}return {ok:true};}
