@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
-import {resilientInference} from '../public/phonetics/inference-recovery.mjs';
+import {resilientInference,isMobileDevice} from '../public/phonetics/inference-recovery.mjs';
+assert.equal(isMobileDevice({userAgent:'Mozilla/5.0 (Linux; Android 13) Chrome/140'}),true);
+assert.equal(isMobileDevice({userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)'}),true);
+assert.equal(isMobileDevice({platform:'MacIntel',maxTouchPoints:5}),true);
+assert.equal(isMobileDevice({userAgentData:{mobile:true}}),true);
+assert.equal(isMobileDevice({platform:'Win32',maxTouchPoints:10}),false);
 
 // Exercise the production queue and model switch, with a GPU that fails only
 // after its warm-up succeeded (the failure reported on clients' devices).
@@ -25,7 +30,7 @@ globalThis.__recoveryTest={
 };
 const stubbed=source.replace(/^import .*transformers.min.js';$/m,'const {AutoModelForCTC,AutoProcessor,env}=globalThis.__recoveryTest;')
  .replace(/^import .*core.mjs\?v=12';$/m,"const MODEL='test',REVISION='test',logSoftmaxRows=data=>data;")
- .replace("'./inference-recovery.mjs?v=1'",JSON.stringify(new URL('../public/phonetics/inference-recovery.mjs',import.meta.url).href))
+ .replace("'./inference-recovery.mjs?v=2'",JSON.stringify(new URL('../public/phonetics/inference-recovery.mjs',import.meta.url).href))
  .replace("new URL('./vendor/',import.meta.url).href",JSON.stringify(new URL('../public/phonetics/vendor/',import.meta.url).href));
 try {
  const {prepareEngine,inferAudio}=await import('data:text/javascript;base64,'+Buffer.from(stubbed).toString('base64'));
@@ -38,5 +43,10 @@ try {
  let retries=0;
  await assert.rejects(resilientInference({device:'wasm',useWasm(){retries++;}},new Float32Array(),async()=>{throw Error('CPU unavailable');}),/CPU unavailable/);
  assert.equal(retries,0,'CPU errors must not cause an infinite retry loop');
+ // On mobile, even an advertised GPU must not be initialized.
+ self.navigator={userAgent:'Mozilla/5.0 (Linux; Android 13)',gpu:{requestAdapter:async()=>{throw Error('Mobile GPU should not be requested');}}};
+ const mobile=await import('data:text/javascript;base64,'+Buffer.from(stubbed+'\n// mobile session').toString('base64'));
+ assert.equal((await mobile.prepareEngine()).device,'wasm');
+ assert.equal((await mobile.inferAudio(new Float32Array([11]))).values[0],11);
  console.log('PASS: runtime GPU buffer failure recovers on CPU with original PCM, queued work continues, lost-device cleanup is tolerated, CPU errors remain bounded.');
 }finally{globalThis.fetch=originalFetch;delete globalThis.__recoveryTest;}
