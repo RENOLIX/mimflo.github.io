@@ -17,11 +17,14 @@ async function phonemes(text,words){
  if(lines.length!==words.length+1)throw Error('La préparation du texte est incomplète.');return lines.map(line=>line.phonemes);
 }
 async function synthesize({id,text}){
- let audioCache,key;try{key=new URL('./cached/'+Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))).map(b=>b.toString(16).padStart(2,'0')).join(''),import.meta.url).href;audioCache=await caches.open('mimflo-french-voice-audio-v1');const hit=await audioCache.match(key);if(hit){const timings=JSON.parse(decodeURIComponent(hit.headers.get('X-MimFlo-Timings'))),buffer=await hit.arrayBuffer();self.postMessage({id,type:'audio',timings,buffer},[buffer]);return}}catch{}
+ let audioCache,key;try{key=new URL('./cached/'+Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))).map(b=>b.toString(16).padStart(2,'0')).join(''),import.meta.url).href;audioCache=await caches.open('mimflo-french-voice-audio-v2');const hit=await audioCache.match(key);if(hit){const timings=JSON.parse(decodeURIComponent(hit.headers.get('X-MimFlo-Timings'))),buffer=await hit.arrayBuffer();self.postMessage({id,type:'audio',timings,buffer},[buffer]);return}}catch{}
  const words=text.match(/[\p{L}\p{N}]+(?:[’'-][\p{L}\p{N}]+)*/gu)||[];if(!words.length||words.length>80)throw Error('Choisissez une phrase plus courte.');
  const {config,session}=await load(id);self.postMessage({id,type:'progress',percent:85});const [full,...isolated]=await phonemes(text,words),input=synthesisInput(full,isolated,words,config.phoneme_id_map);
- const results=await session.run({input:new ort.Tensor('int64',BigInt64Array.from(input.ids,BigInt),[1,input.ids.length]),input_lengths:new ort.Tensor('int64',BigInt64Array.of(BigInt(input.ids.length)),[1]),scales:new ort.Tensor('float32',Float32Array.of(config.inference.noise_scale,config.inference.length_scale,config.inference.noise_w),[3])});
- const samples=results.output.data,frames=results['/Ceil_output_0'].data,timings=audioWordTimings(input,frames,config.audio.sample_rate,samples.length),wav=wavBytes(samples,config.audio.sample_rate);
+ // A calmer pace comes from the voice's predicted sound durations, rather than
+ // stretching an already generated fast recording. Keep sentence-level prosody.
+ const results=await session.run({input:new ort.Tensor('int64',BigInt64Array.from(input.ids,BigInt),[1,input.ids.length]),input_lengths:new ort.Tensor('int64',BigInt64Array.of(BigInt(input.ids.length)),[1]),scales:new ort.Tensor('float32',Float32Array.of(config.inference.noise_scale,config.inference.length_scale*1.22,config.inference.noise_w*.85),[3])});
+ const samples=results.output.data,frames=results['/Ceil_output_0'].data,timings=audioWordTimings(input,frames,config.audio.sample_rate,samples.length);
+ const pauseSeconds=/[.!?…][\s”"»’']*$/.test(text)?.22:.38,withPause=new Float32Array(samples.length+Math.round(pauseSeconds*config.audio.sample_rate));withPause.set(samples);const wav=wavBytes(withPause,config.audio.sample_rate);
  try{if(audioCache&&key){await audioCache.put(key,new Response(wav,{headers:{'Content-Type':'audio/wav','X-MimFlo-Timings':encodeURIComponent(JSON.stringify(timings))}}));const keys=await audioCache.keys();for(const old of keys.slice(0,Math.max(0,keys.length-100)))await audioCache.delete(old)}}catch{}
  for(const value of Object.values(results))value.dispose();const buffer=wav.buffer;self.postMessage({id,type:'audio',timings,buffer},[buffer]);
 }

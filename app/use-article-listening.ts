@@ -3,10 +3,11 @@ import {useEffect,useRef,useState} from 'react';
 import {readingWords} from './reading-flow';
 import {speechSegments} from './speech-reading';
 import {synthesizeFrench,type VoiceClip} from './timed-voice';
+import {LISTENING_SPEEDS,validListeningSpeed} from './listening-speeds';
 type Track={segments:ReturnType<typeof speechSegments>;cursor:number;whole:boolean;phrases:ReturnType<typeof speechSegments>};
 export function useArticleListening(text:string,onError:(message:string)=>void){
- const [playing,setPlaying]=useState(false),[paused,setPaused]=useState(false),[loading,setLoading]=useState(false),[percent,setPercent]=useState(0),[activeWord,setActiveWord]=useState<number|null>(null),[activeRange,setActiveRange]=useState<{first:number;last:number}|null>(null),[completed,setCompleted]=useState(false),[speed,setSpeedState]=useState(1.04);
- const audio=useRef<HTMLAudioElement|null>(null),url=useRef(''),generation=useRef(0),track=useRef<Track|null>(null),clip=useRef<VoiceClip|null>(null),frame=useRef<number|null>(null),rate=useRef(1.04),prefetch=useRef<{text:string;result:Promise<VoiceClip>}|null>(null);
+ const [playing,setPlaying]=useState(false),[paused,setPaused]=useState(false),[loading,setLoading]=useState(false),[percent,setPercent]=useState(0),[activeWord,setActiveWord]=useState<number|null>(null),[activeRange,setActiveRange]=useState<{first:number;last:number}|null>(null),[completed,setCompleted]=useState(false),[speed,setSpeedState]=useState<number>(LISTENING_SPEEDS.normal);
+ const audio=useRef<HTMLAudioElement|null>(null),url=useRef(''),generation=useRef(0),track=useRef<Track|null>(null),clip=useRef<VoiceClip|null>(null),frame=useRef<number|null>(null),rate=useRef<number>(LISTENING_SPEEDS.normal),prefetch=useRef<{text:string;result:Promise<VoiceClip>}|null>(null);
  function clearFrame(){if(frame.current!==null)cancelAnimationFrame(frame.current);frame.current=null}
  function clearMedia(){clearFrame();if(audio.current){audio.current.onended=null;audio.current.pause()}if(url.current)URL.revokeObjectURL(url.current);url.current='';clip.current=null}
  function stop(){generation.current++;clearMedia();track.current=null;prefetch.current=null;setPlaying(false);setPaused(false);setLoading(false);setActiveWord(null);setActiveRange(null)}
@@ -39,7 +40,7 @@ export function useArticleListening(text:string,onError:(message:string)=>void){
   if(at>=0){play(at,at+parts.length,value,false);return}
   stop();unlock();rate.current=value;track.current={segments:speechSegments(expression),cursor:0,whole:false,phrases:[]};setPlaying(true);void next(++generation.current);
  }
- function setSpeed(value:number){if(![.8,1.04,1.3].includes(value))return;rate.current=value;setSpeedState(value);if(audio.current)audio.current.playbackRate=value}
+ function setSpeed(value:number){if(!validListeningSpeed(value))return;rate.current=value;setSpeedState(value);if(audio.current)audio.current.playbackRate=value}
  useEffect(()=>()=>{generation.current++;clearMedia();audio.current=null},[]);
  return {playing,paused,loading,percent,pause,restart,activeWord,activeRange,completed,speed,setSpeed,toggle,stop,playRange:play,playExpression};
 }
