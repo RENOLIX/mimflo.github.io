@@ -1,0 +1,7 @@
+Voix française MimFlo
+Piper siwis medium, modèle original https://huggingface.co/rhasspy/piper-voices
+Données SIWIS (University of Edinburgh) sous CC BY 4.0 : voir MODEL_CARD.txt.
+Le graphe ONNX expose en supplément les durées internes des phonèmes (Ceil), sans modifier la sortie audio.
+Traitement et lecture effectués sur l'appareil ; aucun texte de l'élève n'est envoyé à un service vocal.
+ONNX Runtime Web 1.22.0 (MIT) : vendor/LICENSE-onnxruntime.txt.
+Phonémisation : moteur Piper/eSpeak déjà fourni dans /phonetics/vendor, avec ses licences existantes.

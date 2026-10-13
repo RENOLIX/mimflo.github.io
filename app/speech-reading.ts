@@ -13,15 +13,3 @@ export function speechSegments(text:string,fromWord=0,toWord=readingWords(text).
  return segments;
 }
 
-// Visual timing fallback only: never split the spoken sentence into words.
-// Real speech boundary events supersede these estimates whenever available.
-export function speechWordTimeline(text:string,first:number,last:number){
- const words=readingWords(text);let units=0;
- const timeline=words.slice(first,last).map((word,offset)=>{
-  const index=first+offset,at=units;
-  const punctuation=text.slice(word.end,words[index+1]?.start??text.length);
-  units+=Math.max(3,word.text.length)+1+(/[,:;]/.test(punctuation)?3:0);
-  return {index,at};
- });
- return {timeline,units};
-}

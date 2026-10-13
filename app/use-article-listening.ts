@@ -1,56 +1,45 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {readingWords} from './reading-flow';
-import {speechSegments,speechWordTimeline} from './speech-reading';
-
+import {speechSegments} from './speech-reading';
+import {synthesizeFrench,type VoiceClip} from './timed-voice';
+type Track={segments:ReturnType<typeof speechSegments>;cursor:number;whole:boolean;phrases:ReturnType<typeof speechSegments>};
 export function useArticleListening(text:string,onError:(message:string)=>void){
- const [playing,setPlaying]=useState(false),[activeWord,setActiveWord]=useState<number|null>(null),[completed,setCompleted]=useState(false),[activeRange,setActiveRange]=useState<{first:number;last:number}|null>(null);
- const [paused,setPaused]=useState(false);
- const [speed,setSpeedState]=useState(1.04);
- const resumeWord=useRef(0);
- const clock=useRef<ReturnType<typeof setInterval>|null>(null),voicePace=useRef(17);
- function stopClock(){if(clock.current!==null)clearInterval(clock.current);clock.current=null;}
- const generation=useRef(0),owned=useRef(false),utteranceRef=useRef<SpeechSynthesisUtterance|null>(null),requestRef=useRef<{from:number;to:number;whole:boolean}|{expression:string}|null>(null);
- function stop(){stopClock();setPaused(false);generation.current++;if(owned.current)window.speechSynthesis?.cancel();owned.current=false;setPlaying(false);setActiveWord(null);setActiveRange(null);utteranceRef.current=null;requestRef.current=null;}
- useEffect(()=>()=>{stopClock();generation.current++;if(owned.current)window.speechSynthesis?.cancel()},[]);
- function play(fromWord=0,toWord=readingWords(text).length,rate=speed,whole=fromWord===0&&toWord===readingWords(text).length){
-  if(!window.speechSynthesis){onError('L’écoute n’est pas disponible dans ce navigateur.');return;}
-  const synth=window.speechSynthesis,voices=synth.getVoices().filter(voice=>voice.lang.startsWith('fr'));
-  const voice=voices.find(v=>v.lang==='fr-FR'&&/Google|Natural|Online/i.test(v.name))||voices.find(v=>v.lang==='fr-FR')||voices[0];
-  const words=readingWords(text),phrases=speechSegments(text),segments=speechSegments(text,fromWord,toWord);if(!segments.length)return;
-  requestRef.current={from:fromWord,to:toWord,whole};
-  stopClock();const run=++generation.current;owned.current=true;synth.cancel();setPaused(false);setPlaying(true);
-  let cursor=0;
-  function next(){
-   if(generation.current!==run)return;
-   if(cursor>=segments.length){owned.current=false;setPlaying(false);setActiveWord(null);setActiveRange(null);utteranceRef.current=null;requestRef.current=null;if(whole)setCompleted(true);return;}
-   const {first,last,start,text:phrase}=segments[cursor++],utterance=new SpeechSynthesisUtterance(phrase);utteranceRef.current=utterance;
-   utterance.lang='fr-FR';utterance.rate=rate;if(voice)utterance.voice=voice;
-   const phraseRange=phrases.find(p=>first>=p.first&&first<p.last)||{first,last};
-   const timing=speechWordTimeline(text,first,last);let started=0;
-   utterance.onstart=()=>{if(generation.current===run){started=performance.now();resumeWord.current=first;setActiveWord(first);setActiveRange({first:phraseRange.first,last:phraseRange.last});clock.current=setInterval(()=>{if(generation.current!==run)return;const elapsed=(performance.now()-started)/1000,position=elapsed*voicePace.current*rate;const at=timing.timeline.filter(word=>word.at<=position).at(-1)?.index??first;if(at!==resumeWord.current){resumeWord.current=at;setActiveWord(at)}},80)}};
-   utterance.onboundary=event=>{if(generation.current!==run||event.name==='sentence')return;const character=start+event.charIndex;let at=first;while(at+1<last&&words[at+1].start<=character)at++;if(at>first)stopClock();resumeWord.current=at;setActiveWord(at)};
-   utterance.onend=()=>{if(generation.current!==run)return;stopClock();const seconds=(performance.now()-started)/1000;if(started&&seconds>.4){const measured=timing.units/(seconds*rate);if(measured>=7&&measured<=40)voicePace.current=voicePace.current*.35+measured*.65}resumeWord.current=last;next()};
-   utterance.onerror=event=>{if(generation.current!==run)return;stopClock();owned.current=false;setPlaying(false);setActiveWord(null);setActiveRange(null);utteranceRef.current=null;if(event.error==='canceled'||event.error==='interrupted')return;onError('La lecture vocale a été interrompue. Réessayez dans un navigateur disposant d’une voix française.')};
-   try{if(synth.paused)synth.resume();synth.speak(utterance);}catch{owned.current=false;setPlaying(false);setActiveWord(null);setActiveRange(null);utteranceRef.current=null;onError('La voix française est indisponible dans votre navigateur. Réessayez l’écoute.');}
-  }
-  next();
+ const [playing,setPlaying]=useState(false),[paused,setPaused]=useState(false),[loading,setLoading]=useState(false),[percent,setPercent]=useState(0),[activeWord,setActiveWord]=useState<number|null>(null),[activeRange,setActiveRange]=useState<{first:number;last:number}|null>(null),[completed,setCompleted]=useState(false),[speed,setSpeedState]=useState(1.04);
+ const audio=useRef<HTMLAudioElement|null>(null),url=useRef(''),generation=useRef(0),track=useRef<Track|null>(null),clip=useRef<VoiceClip|null>(null),frame=useRef<number|null>(null),rate=useRef(1.04),prefetch=useRef<{text:string;result:Promise<VoiceClip>}|null>(null);
+ function clearFrame(){if(frame.current!==null)cancelAnimationFrame(frame.current);frame.current=null}
+ function clearMedia(){clearFrame();if(audio.current){audio.current.onended=null;audio.current.pause()}if(url.current)URL.revokeObjectURL(url.current);url.current='';clip.current=null}
+ function stop(){generation.current++;clearMedia();track.current=null;prefetch.current=null;setPlaying(false);setPaused(false);setLoading(false);setActiveWord(null);setActiveRange(null)}
+ function player(){if(!audio.current){audio.current=new Audio();audio.current.preload='auto';audio.current.preservesPitch=true;}return audio.current}
+ function follow(run:number){if(generation.current!==run||!audio.current||audio.current.paused||!clip.current||!track.current)return;const t=audio.current.currentTime,position=clip.current.timings.find(word=>t>=word.start&&t<word.end)||clip.current.timings.filter(word=>word.start<=t).at(-1)||clip.current.timings[0];if(position)setActiveWord(track.current.segments[track.current.cursor].first+position.index);frame.current=requestAnimationFrame(()=>follow(run))}
+ function unlock(){const a=player();if(a.src)return;a.src='data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQIAAAAAAA==';void a.play().catch(()=>{})}
+ async function next(run:number){
+  const current=track.current;if(generation.current!==run||!current)return;
+  if(current.cursor>=current.segments.length){clearMedia();setPlaying(false);setPaused(false);setLoading(false);setActiveWord(null);setActiveRange(null);if(current.whole)setCompleted(true);track.current=null;return}
+  const segment=current.segments[current.cursor];clearMedia();setLoading(true);setPercent(0);
+  try{
+   const result=await(prefetch.current?.text===segment.text?prefetch.current.result:synthesizeFrench(segment.text,value=>{if(generation.current===run)setPercent(Math.round(value))}));
+   if(generation.current!==run||track.current!==current)return;clearMedia();clip.current=result;const a=player();url.current=URL.createObjectURL(result.blob);a.src=url.current;a.playbackRate=rate.current;
+   const range=current.phrases.find(p=>segment.first>=p.first&&segment.first<p.last)||segment;setActiveRange({first:range.first,last:range.last});setActiveWord(segment.first);setPercent(100);setLoading(false);
+   a.onended=()=>{if(generation.current!==run)return;clearFrame();current.cursor++;void next(run)};
+   await a.play();if(generation.current!==run)return;setPlaying(true);setPaused(false);follow(run);
+   const following=current.segments[current.cursor+1];prefetch.current=following?{text:following.text,result:synthesizeFrench(following.text)}:null;prefetch.current?.result.catch(()=>{});
+  }catch(error:any){if(generation.current!==run)return;clearFrame();setLoading(false);setPlaying(false);setPaused(true);onError(error.name==='NotAllowedError'?'La voix est prête. Appuyez sur « Reprendre l’écoute ».':error.message||'La lecture est indisponible. Réessayez.');}
  }
- function pause(){if(!owned.current)return;stopClock();generation.current++;window.speechSynthesis.cancel();utteranceRef.current=null;setPlaying(false);setPaused(true);}
- function toggle(){if(playing)pause();else if(paused&&owned.current){const request=requestRef.current;if(request&&'expression' in request)playExpression(request.expression);else if(request)play(resumeWord.current,request.to,speed,request.whole);else play();}else play();}
- function restart(){stop();play();}
- function playExpression(expression:string,rate=speed){
-  const words=readingWords(text),parts=readingWords(expression),normalize=(word:string)=>word.toLocaleLowerCase('fr').replaceAll('’',"'");
+ function play(fromWord=0,toWord=readingWords(text).length,value=rate.current,whole=fromWord===0&&toWord===readingWords(text).length){
+  stop();unlock();const segments=speechSegments(text,fromWord,toWord);if(!segments.length)return;rate.current=value;track.current={segments,cursor:0,whole,phrases:speechSegments(text)};setPlaying(true);void next(++generation.current);
+ }
+ function pause(){if(!track.current)return;clearFrame();audio.current?.pause();setPlaying(false);setPaused(true);if(loading){generation.current++;setLoading(false)}}
+ async function resume(){if(!track.current){play();return}if(!clip.current){setPlaying(true);setPaused(false);void next(++generation.current);return}const run=generation.current;try{await player().play();if(generation.current!==run)return;setPlaying(true);setPaused(false);follow(run)}catch{onError('Appuyez de nouveau sur « Reprendre l’écoute » pour lancer la voix.')}}
+ function toggle(){if(playing)pause();else if(paused)void resume();else play()}
+ function restart(){play()}
+ function playExpression(expression:string,value=rate.current){
+  const words=readingWords(text),parts=readingWords(expression),normalize=(word:string)=>word.toLocaleLowerCase('fr').replaceAll('’',"'");if(!parts.length)return;
   const at=words.findIndex((word,index)=>parts.every((part,offset)=>normalize(words[index+offset]?.text||'')===normalize(part.text)));
-  if(!parts.length)return;
-  if(at>=0){play(at,at+parts.length,rate);return;}
-  const synth=window.speechSynthesis;if(!synth){onError('L’écoute n’est pas disponible dans ce navigateur.');return;}
-  stop();requestRef.current={expression};const run=++generation.current,utterance=new SpeechSynthesisUtterance(expression);utteranceRef.current=utterance;utterance.lang='fr-FR';utterance.rate=rate;
-  const voice=synth.getVoices().find(voice=>voice.lang==='fr-FR')||synth.getVoices().find(voice=>voice.lang.startsWith('fr'));if(voice)utterance.voice=voice;
-  owned.current=true;setPlaying(true);utterance.onend=()=>{if(generation.current===run){owned.current=false;setPlaying(false)}};
-  utterance.onerror=()=>{if(generation.current===run){owned.current=false;setPlaying(false);onError('La voix française est indisponible. Réessayez l’écoute.')}};
-  try{if(synth.paused)synth.resume();synth.speak(utterance)}catch{stop();onError('La voix française est indisponible. Réessayez l’écoute.')}
+  if(at>=0){play(at,at+parts.length,value,false);return}
+  stop();unlock();rate.current=value;track.current={segments:speechSegments(expression),cursor:0,whole:false,phrases:[]};setPlaying(true);void next(++generation.current);
  }
- function setSpeed(value:number){if(![.8,1.04,1.3].includes(value))return;setSpeedState(value);const request=requestRef.current;if(!playing||!request)return;if('expression' in request)playExpression(request.expression,value);else play(resumeWord.current,request.to,value,request.whole);}
- return {playing,paused,pause,restart,activeWord,activeRange,completed,speed,setSpeed,toggle,stop,playRange:play,playExpression};
+ function setSpeed(value:number){if(![.8,1.04,1.3].includes(value))return;rate.current=value;setSpeedState(value);if(audio.current)audio.current.playbackRate=value}
+ useEffect(()=>()=>{generation.current++;clearMedia();audio.current=null},[]);
+ return {playing,paused,loading,percent,pause,restart,activeWord,activeRange,completed,speed,setSpeed,toggle,stop,playRange:play,playExpression};
 }

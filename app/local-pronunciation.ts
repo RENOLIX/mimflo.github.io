@@ -12,6 +12,7 @@ export function prepareLocalPronunciation(){
  if(!window.Worker||!window.WebAssembly)return;
  try{getWorker().postMessage({type:'prepare',id:'prepare'});releaseLater()}catch{/* Analysis reports preparation failures. */}
 }
+export function releaseIdleLocalPronunciation(){if(rejectActive)return;clearTimeout(idle);worker?.terminate();worker=null;}
 export async function localPronunciation(wav:Uint8Array,reference:string,_seconds:number,onProgress?:(progress:AnalysisProgress)=>void,partial=false,options:{wordPractice?:boolean}={}):Promise<LocalResult>{
  if(!window.Worker||!window.WebAssembly)throw new Error('L’analyse nécessite un navigateur récent.');
  const currentGeneration=generation;
