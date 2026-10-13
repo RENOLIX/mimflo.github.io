@@ -6,7 +6,7 @@ const results=new Map<string,LocalResult>();
 export const ANALYSIS_STALL_MS=120000;
 export const ANALYSIS_MAX_MS=600000;
 function releaseLater(){clearTimeout(idle);idle=setTimeout(()=>{if(!rejectActive){worker?.terminate();worker=null}},10*60000)}
-function getWorker(){clearTimeout(idle);return worker||(worker=new Worker('/phonetics/worker.mjs?v=13',{type:'module'}))}
+function getWorker(){clearTimeout(idle);return worker||(worker=new Worker('/phonetics/worker.mjs?v=14',{type:'module'}))}
 export function cancelLocalPronunciation(){generation++;if(!rejectActive){if(worker)releaseLater();return;}const reject=rejectActive;rejectActive=null;worker?.terminate();worker=null;clearTimeout(idle);reject();}
 export function prepareLocalPronunciation(reference?:string){
  if(!window.Worker||!window.WebAssembly)return;
@@ -50,3 +50,4 @@ export async function localPronunciation(wav:Uint8Array,reference:string,_second
   const buffer=wav.slice().buffer;try{active.postMessage({type:'analyse',id,wav:buffer,audioHash:hash,recordingId:options.recordingId,reference,articleReference:options.articleReference,preferredStartWord:options.preferredStartWord,partial,wordPractice:options.wordPractice===true},[buffer])}catch{error()}
  });
 }
+

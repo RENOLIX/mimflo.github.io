@@ -1,4 +1,4 @@
-import { prepareEngine, inferAudio } from './engine.mjs?v=1';
+import { prepareEngine, inferAudio } from './engine.mjs?v=2';
 import { wavSamples, acousticAssessment, vocalTiming } from './core.mjs?v=12';
 import { frenchPhones } from './g2p.mjs?v=11';
 import { AcousticStream, acousticWindow } from './stream-cache.mjs?v=1';

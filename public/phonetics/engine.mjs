@@ -1,5 +1,6 @@
 import {AutoModelForCTC,AutoProcessor,env} from './vendor/transformers.min.js';
 import {MODEL,REVISION,logSoftmaxRows} from './core.mjs?v=12';
+import {resilientInference} from './inference-recovery.mjs?v=1';
 env.allowLocalModels=false;env.useBrowserCache=true;
 env.backends.onnx.wasm.numThreads=1;
 env.backends.onnx.wasm.wasmPaths=new URL('./vendor/',import.meta.url).href;
@@ -8,7 +9,7 @@ const diagnostic=(stage,device)=>{if(/[?&](gpu|cpu)=1/.test(self.location.search
 async function run(engine,samples){
  const input=await engine.processor(samples);let result;
  try{result=await engine.model(input);return {values:logSoftmaxRows(result.logits.data,result.logits.dims[1],engine.labels.length),frameCount:result.logits.dims[1]};}
- finally{for(const tensor of [...Object.values(input),...Object.values(result||{})])tensor?.dispose?.();}
+ finally{for(const tensor of [...Object.values(input),...Object.values(result||{})]){try{await tensor?.dispose?.();}catch{/* A lost GPU must not mask the inference error or stop CPU recovery. */}}}
 }
 export function prepareEngine(onProgress){
  if(onProgress)notify=onProgress;
@@ -24,14 +25,22 @@ export function prepareEngine(onProgress){
   try{model=await AutoModelForCTC.from_pretrained(MODEL,options);}
   catch(e){if(device==='wasm')throw e;device='wasm';model=await AutoModelForCTC.from_pretrained(MODEL,{...options,device});}
   const engine={model,processor:await processorPromise,vocab,labels,device};
+  let fallback;
+  engine.useWasm=()=>fallback||(fallback=(async()=>{
+   diagnostic('cpu-recovery','wasm');
+   try{await engine.model.dispose?.();}catch{/* Device may already be lost. */}
+   engine.model=null;
+   engine.model=await AutoModelForCTC.from_pretrained(MODEL,{...options,device:'wasm'});
+   engine.device='wasm';
+  })());
   diagnostic('kernel-warmup',device);
   // Warm short-window kernels while the client is browsing or reading.
-  try{await run(engine,new Float32Array(48000));}
-  catch(e){await model.dispose?.();if(device==='wasm')throw e;engine.device='wasm';engine.model=await AutoModelForCTC.from_pretrained(MODEL,{...options,device:'wasm'});await run(engine,new Float32Array(48000));}
+  try{await resilientInference(engine,new Float32Array(48000),run);}
+  catch(e){try{await engine.model?.dispose?.();}catch{}throw e;}
   return engine;
  })().catch(e=>{pending=null;throw e;});
  return pending;
 }
 export function inferAudio(samples){
- const task=queue.then(async()=>run(await prepareEngine(),samples));queue=task.catch(()=>{});return task;
+ const task=queue.then(async()=>resilientInference(await prepareEngine(),samples,run));queue=task.catch(()=>{});return task;
 }
