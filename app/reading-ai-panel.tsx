@@ -11,7 +11,7 @@ import {readingWords} from './reading-flow';
 export const isPhonetic=(a:any)=>a?.kind==='phonetic-experimental';
 export function assessmentLabel(a:any){return isPhonetic(a)?'repérage des sons':a?.kind==='pronunciation'?'prononciation':'fidélité au passage'}
 export {ReadingAnalysis} from './reading-report';
-export default function ReadingAiPanel({articleId,reference,blob,seconds,maxSeconds,saved,recording,recordingId,startWord,onSaved,onBusy,onRetry}:{articleId:string;reference:string;blob:Blob|null;seconds:number;maxSeconds:number;saved:boolean;recording:boolean;recordingId?:string;startWord:number;onSaved:(result:any)=>void|Promise<void>;onBusy:(busy:boolean)=>void;onRetry?:()=>void}){
+export default function ReadingAiPanel({articleId,reference,fullReference,reanalyse=false,blob,seconds,maxSeconds,saved,recording,recordingId,startWord,onSaved,onBusy,onRetry}:{articleId:string;reference:string;fullReference?:string;reanalyse?:boolean;blob:Blob|null;seconds:number;maxSeconds:number;saved:boolean;recording:boolean;recordingId?:string;startWord:number;onSaved:(result:any)=>void|Promise<void>;onBusy:(busy:boolean)=>void;onRetry?:()=>void}){
  const [consent,setConsent]=useState(false),[busy,setBusy]=useState(false),[saving,setSaving]=useState(false),[message,setMessage]=useState(''),[result,setResult]=useState<any>(null),[job,setJob]=useState('');
  const prepared=useRef<any>(null),mounted=useRef(true),operation=useRef(0);
  const [progress,setProgress]=useState<AnalysisProgress>({percent:0,phase:'preparing'});
@@ -23,17 +23,18 @@ export default function ReadingAiPanel({articleId,reference,blob,seconds,maxSeco
   setBusy(true);setSaving(false);onBusy(true);setMessage('');setProgress({percent:0,phase:'preparing'});const key=recordingId||job||crypto.randomUUID();setJob(key);
   try{
    if(!prepared.current){
-    const permission=await memberRequest('/analysis/status');if(!isCurrent())return;
+    const permission=await memberRequest('/analysis/status'+(reanalyse&&recordingId?'?recordingId='+encodeURIComponent(recordingId):''));if(!isCurrent())return;
     if(permission.allowed===false)throw new Error(permission.message||'Cette analyse n’est pas incluse dans votre accès.');
     setProgress({percent:3,phase:'preparing'});
     const wav=await audioToWav(blob,maxSeconds);if(!isCurrent())return;
-    const localResult=await localPronunciation(wav,reference,seconds,value=>{if(isCurrent())setProgress(value)},true);if(!isCurrent())return;
+    const localResult=await localPronunciation(wav,reference,seconds,value=>{if(isCurrent())setProgress(value)},true,{recordingId,articleReference:fullReference,preferredStartWord:startWord});if(!isCurrent())return;
     prepared.current=localResult;
    }
    if(!isCurrent())return;
    setSaving(true);setProgress({percent:98,phase:'saving'});
    const local=prepared.current;
-   const data=await memberRequest('/analysis/local',{id:key,consent:true,articleId,passageIndex:0,readingStartWord:startWord,readingEndWord:startWord+readingWords(local.analysis.reference).length,seconds:local.analysis.seconds,analysis:local.analysis});
+   const actualStart=Number.isInteger(local.analysis.detectedStartWord)?local.analysis.detectedStartWord:startWord;
+   const data=await memberRequest('/analysis/local',{id:key,reanalyse,consent:true,articleId,passageIndex:0,readingStartWord:actualStart,readingEndWord:actualStart+readingWords(local.analysis.reference).length,seconds:local.analysis.seconds,analysis:local.analysis});
    if(!isCurrent())return;
    setProgress({percent:100,phase:'done'});
    setResult(data);setMessage('Votre analyse est sauvegardée.');await onSaved({...data,recordingBlob:blob});

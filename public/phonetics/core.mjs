@@ -1,4 +1,5 @@
 // Pure acoustic analysis; no language-model transcription or generated audio.
+import {pronunciationPracticeScore} from './score.mjs?v=1';
 export const MODEL = 'onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX';
 export const REVISION = 'c69750f5043e5e1f8a71ab95dd3b98338c280c92';
 export const KIND = 'phonetic-experimental';
@@ -73,6 +74,19 @@ export function greedyPhones(logp, frames, width, labels, blank = 0) {
 }
 
 export function alignPhones(expected, heard, options = {}) {
+  if(options.span){
+    const n=expected.length,m=heard.length,cols=m+1;
+    if(n*m>16000000){const offset=Math.max(0,(options.preferredPhone||0)-300),end=Math.min(n,offset+Math.max(600,m*3));return alignPhones(expected.slice(offset,end),heard,{span:true,preferredPhone:(options.preferredPhone||0)-offset}).map(p=>({...p,expectedIndex:p.expectedIndex===null?null:p.expectedIndex+offset}));}
+    const costs=new Uint16Array((n+1)*cols);for(let j=0;j<=m;j++)costs[j]=j;
+    let endpoint=0,best=m,preferredEnd=(options.preferredPhone||0)+m;
+    for(let i=1;i<=n;i++){
+      for(let j=1;j<=m;j++)costs[i*cols+j]=Math.min(costs[(i-1)*cols+j]+1,costs[i*cols+j-1]+1,costs[(i-1)*cols+j-1]+(expected[i-1].id===heard[j-1].id?0:1));
+      const cost=costs[i*cols+m];if(cost<best||cost===best&&Math.abs(i-preferredEnd)<Math.abs(endpoint-preferredEnd)){best=cost;endpoint=i;}
+    }
+    const aligned=[];let i=endpoint,j=m;
+    while(j){const here=costs[i*cols+j];if(i&&here===costs[(i-1)*cols+j-1]+(expected[i-1].id===heard[j-1].id?0:1)){aligned.push({expectedIndex:--i,heardIndex:--j,status:expected[i].id===heard[j].id?'match':'different'});}else if(i&&here===costs[(i-1)*cols+j]+1)aligned.push({expectedIndex:--i,heardIndex:null,status:'missing'});else aligned.push({expectedIndex:null,heardIndex:--j,status:'added'});}
+    return aligned.reverse();
+  }
   if (options.prefix) {
     let row = Uint32Array.from({ length: heard.length + 1 }, (_, i) => i), endpoint = 0, best = heard.length;
     for (let i = 1; i <= expected.length; i++) {
@@ -183,21 +197,26 @@ export function anchoredCtc(logp, frames, width, present, expected, heard) {
   return spans;
 }
 
-export function acousticAssessment({ logp, frames, width, expected, labels, samples, reference, partial = false }) {
+export function acousticAssessment({ logp, frames, width, expected, labels, samples, reference, partial = false, span = false, preferredStartWord = 0 }) {
   const seconds = samples.length / 16000, timing = vocalTiming(samples);
   const heard = greedyPhones(logp, frames, width, labels);
-  let alignment = alignPhones(expected, heard, { prefix: partial });
-  if (partial) {
+  let alignment = alignPhones(expected, heard, { prefix: partial&&!span,span,preferredPhone:Math.max(0,expected.findIndex(p=>p.wordIndex===preferredStartWord)) });
+  let detectedStartWord=null;
+  if (partial||span) {
     const present = alignment.filter(pair => pair.expectedIndex !== null && pair.heardIndex !== null);
     if (!present.length) throw Error('Aucun mot du texte n’a pu être repéré. Choisissez le point de départ dans l’article puis réessayez.');
     const lastPhone = Math.max(...present.map(pair => pair.expectedIndex)), lastWord = expected[lastPhone].wordIndex;
+    const firstWord=span?expected[Math.min(...present.map(pair=>pair.expectedIndex))].wordIndex:0;
+    const firstPhone=span?expected.findIndex(p=>p.wordIndex===firstWord):0;
+    if(span)detectedStartWord=firstWord;
     const stop = expected.findIndex((phone, index) => index > lastPhone && phone.wordIndex !== lastWord);
     const count = stop < 0 ? expected.length : stop;
     const covered = new Set(alignment.filter(pair => pair.expectedIndex !== null).map(pair => pair.expectedIndex));
-    for (let index = 0; index < count; index++) if (!covered.has(index)) alignment.push({ expectedIndex: index, heardIndex: null, status: 'missing' });
-    expected = expected.slice(0, count);
+    for (let index = firstPhone; index < count; index++) if (!covered.has(index)) alignment.push({ expectedIndex: index, heardIndex: null, status: 'missing' });
+    alignment=alignment.filter(pair=>pair.expectedIndex===null||pair.expectedIndex>=firstPhone&&pair.expectedIndex<count).map(pair=>({...pair,expectedIndex:pair.expectedIndex===null?null:pair.expectedIndex-firstPhone}));
+    expected = expected.slice(firstPhone, count).map(phone=>({...phone,wordIndex:phone.wordIndex-firstWord}));
     const words = [...reference.matchAll(/[\p{L}\p{N}]+(?:[’'-][\p{L}\p{N}]+)*/gu)];
-    reference = reference.slice(0, words[lastWord + 1]?.index ?? reference.length).trim();
+    reference = reference.slice(words[firstWord]?.index||0, words[lastWord + 1]?.index ?? reference.length).trim();
   }
   if (!heard.length) throw Error('Aucun phonème reconnu. Vérifiez le microphone et la langue du passage.');
   // Omitted phones have no acoustic interval; they cannot be assigned invented timestamps.
@@ -229,7 +248,7 @@ export function acousticAssessment({ logp, frames, width, expected, labels, samp
   const measured = phones.filter(p => p.expected && p.confidence !== null);
   const matched = phones.filter(p => p.status === 'match').length;
   // Unread sounds contribute zero; otherwise a tiny correctly read fragment would score 100.
-  const score = Math.round(measured.reduce((s, p) => s + p.confidence, 0) / Math.max(1, expected.length));
+  const score = pronunciationPracticeScore(phones);
   const recognized = heard.map(p => p.phone).join(' ');
   const tips = [];
   const weak = [...measured].filter(p => p.confidence < 55 || p.status === 'different').sort((a, b) => a.confidence - b.confidence).slice(0, 4);
@@ -238,5 +257,5 @@ export function acousticAssessment({ logp, frames, width, expected, labels, samp
   if (timing.pauseCount) tips.push('Écoutez les pauses repérées et entraînez-vous à lire par groupes de mots. Les pauses de ponctuation restent naturelles.');
   if (timing.clipped || timing.noiseHigh) tips.push('Le son est saturé ou bruyant. Refaites la lecture dans un endroit calme avant de comparer les indices.');
   if (!tips.length) tips.push('Les sons attendus sont bien représentés dans cette lecture. Comparez plusieurs lectures du même passage.');
-  return { transcript: recognized, analysis: { version: 5, kind: KIND, provider: 'wav2vec2-lv60-phoneme-ctc', model: MODEL, revision: REVISION, method: 'CTC forced alignment + mean non-blank phone posterior + log posterior margin (GOP-style)', calibrated: false, score, pronunciationScore: score, accentScore: null, fluencyScore: null, phonemes: phones, matchedPercent: Math.round(matched / expected.length * 100), expectedPhonemes: expected.length, recognizedPhonemes: heard.length, seconds: Math.round(seconds * 100) / 100, timing: { ...timing, phonesPerSecond: Math.round(heard.length / Math.max(.2, timing.voicedSeconds) * 10) / 10 }, reference, tips, limitation: 'Indice acoustique expérimental : il mesure les probabilités du modèle phonétique et les sons manquants. Il n’est pas une note validée de prononciation. L’accent et la fluidité ne sont pas calibrés ; aucune équivalence avec Azure ni niveau CECRL n’est établi.' } };
+  return { transcript: recognized, analysis: { version: 5, kind: KIND, provider: 'wav2vec2-lv60-phoneme-ctc', model: MODEL, revision: REVISION, method:'CTC alignment with progressive phonetic similarity practice score; raw acoustic confidence and GOP retained', calibrated: false, scoreMethod: 'phonetic-proximity-v1', alignmentMethod: span?'span-v1':'prefix-v1', detectedStartWord, score, pronunciationScore: score, accentScore: null, fluencyScore: null, phonemes: phones, matchedPercent: Math.round(matched / expected.length * 100), expectedPhonemes: expected.length, recognizedPhonemes: heard.length, seconds: Math.round(seconds * 100) / 100, timing: { ...timing, phonesPerSecond: Math.round(heard.length / Math.max(.2, timing.voicedSeconds) * 10) / 10 }, reference, tips, limitation: 'Indice acoustique expérimental : il mesure les probabilités du modèle phonétique et les sons manquants. Il n’est pas une note validée de prononciation. L’accent et la fluidité ne sont pas calibrés ; aucune équivalence avec Azure ni niveau CECRL n’est établi.' } };
 }

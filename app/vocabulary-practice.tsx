@@ -3,7 +3,7 @@ import {createMicrophoneRecorder,type MicrophoneRecorder} from './microphone-rec
 import {useEffect,useRef,useState} from 'react';
 import {Mic,Square,Volume2,RotateCcw,Trash2,Sparkles} from 'lucide-react';
 import {audioToWav} from './audio-analysis';
-import {localPronunciation,prepareLocalPronunciation,cancelLocalPronunciation,type AnalysisProgress} from './local-pronunciation';
+import {localPronunciation,prepareLocalPronunciation,cancelLocalPronunciation,startPronunciationStream,appendPronunciationStream,finishPronunciationStream,type AnalysisProgress} from './local-pronunciation';
 import AnalysisLoadingOverlay from './analysis-loading-overlay';
 import {listVocabularyAttempts,saveVocabularyAttempt,deleteVocabularyAttempt,type VocabularyAttempt} from './vocabulary-practice-store';
 import {repetitionFeedback} from './reading-report-data';
@@ -21,16 +21,16 @@ export default function VocabularyPractice({phrase=false,word,scope,definition,r
  async function persist(attempt:VocabularyAttempt){try{await saveVocabularyAttempt(attempt)}catch{if(mounted.current)setMessage('Votre répétition reste disponible dans cette page. Le stockage de cet appareil est indisponible.')}}
  async function analyse(attempt:VocabularyAttempt,operation=++run.current){
   lock(true);setStage('analysing');setProgress({percent:0,phase:'preparing'});setMessage('');
-  try{const wav=await audioToWav(attempt.blob,30,.3);if(!mounted.current||operation!==run.current)return;const result=await localPronunciation(wav,word,attempt.seconds,setProgress,false,{wordPractice:!phrase});if(!mounted.current||operation!==run.current)return;const measured={...attempt,analysis:result.analysis};update(measured);await persist(measured);if(mounted.current&&operation===run.current)setProgress({percent:100,phase:'done'});
+  try{const wav=await audioToWav(attempt.blob,30,.3);if(!mounted.current||operation!==run.current)return;const result=await localPronunciation(wav,word,attempt.seconds,setProgress,false,{wordPractice:!phrase,recordingId:attempt.id});if(!mounted.current||operation!==run.current)return;const measured={...attempt,analysis:result.analysis};update(measured);await persist(measured);if(mounted.current&&operation===run.current)setProgress({percent:100,phase:'done'});
   }catch(e:any){if(mounted.current&&operation===run.current)setMessage(e.message)}finally{if(mounted.current&&operation===run.current){setStage('idle');lock(false)}}
  }
  async function start(){
   if(disabled||locked||busy.current)return;const operation=++run.current;setOpen(true);setMessage('');setStage('starting');lock(true);
-  try{if(!navigator.mediaDevices?.getUserMedia||!window.AudioWorkletNode)throw Error('Autorisez le microphone dans un navigateur récent pour répéter ce mot.');const media=await navigator.mediaDevices.getUserMedia({audio:true});if(!mounted.current||operation!==run.current){media.getTracks().forEach(t=>t.stop());return}stream.current=media;const rec=await createMicrophoneRecorder(media);if(!mounted.current){rec.dispose();media.getTracks().forEach(t=>t.stop());return;}const chunks:BlobPart[]=[];recorder.current=rec;
+  try{if(!navigator.mediaDevices?.getUserMedia||!window.AudioWorkletNode)throw Error('Autorisez le microphone dans un navigateur récent pour répéter ce mot.');const media=await navigator.mediaDevices.getUserMedia({audio:true});if(!mounted.current||operation!==run.current){media.getTracks().forEach(t=>t.stop());return}stream.current=media;const rec=await createMicrophoneRecorder(media);if(!mounted.current){rec.dispose();media.getTracks().forEach(t=>t.stop());return;}const chunks:BlobPart[]=[];const attemptId=crypto.randomUUID();recorder.current=rec;rec.onpcm=(samples,sampleRate)=>appendPronunciationStream(attemptId,samples,sampleRate);
    rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
    rec.onerror=()=>{run.current++;if(timer.current)clearTimeout(timer.current);media.getTracks().forEach(t=>t.stop());rec.onstop=null;if(mounted.current){setStage('idle');lock(false);setMessage('L’enregistrement a été interrompu. Vérifiez votre microphone et réessayez.')}};
-   rec.onstop=async()=>{if(timer.current)clearTimeout(timer.current);media.getTracks().forEach(t=>t.stop());if(!mounted.current||operation!==run.current)return;setStage('analysing');setProgress({percent:0,phase:'preparing'});const attempt:VocabularyAttempt={id:crypto.randomUUID(),scope,createdAt:Date.now(),seconds:rec.duration,blob:new Blob(chunks,{type:rec.mimeType})};update(attempt);await persist(attempt);if(mounted.current&&operation===run.current)await analyse(attempt,operation)};
-   began.current=Date.now();rec.start();setStage('recording');prepareLocalPronunciation();timer.current=setTimeout(()=>{if(rec.state==='recording')rec.stop()},29000);
+   rec.onstop=async()=>{finishPronunciationStream(attemptId);if(timer.current)clearTimeout(timer.current);media.getTracks().forEach(t=>t.stop());if(!mounted.current||operation!==run.current)return;setStage('analysing');setProgress({percent:0,phase:'preparing'});const attempt:VocabularyAttempt={id:attemptId,scope,createdAt:Date.now(),seconds:rec.duration,blob:new Blob(chunks,{type:rec.mimeType})};update(attempt);await persist(attempt);if(mounted.current&&operation===run.current)await analyse(attempt,operation)};
+   startPronunciationStream(attemptId,word);began.current=Date.now();rec.start();setStage('recording');prepareLocalPronunciation();timer.current=setTimeout(()=>{if(rec.state==='recording')rec.stop()},29000);
   }catch(e:any){stream.current?.getTracks().forEach(t=>t.stop());if(mounted.current&&operation===run.current){setStage('idle');lock(false);setMessage(e.name==='NotAllowedError'?'Autorisez le microphone pour répéter le mot.':e.message||'Le microphone est indisponible.')}}
  }
  function stop(){if(recorder.current?.state==='recording'){setStage('analysing');recorder.current.stop()}}

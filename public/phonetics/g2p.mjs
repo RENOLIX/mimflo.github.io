@@ -1,8 +1,12 @@
 import createPiperPhonemize from './vendor/piper_phonemize.mjs?v=7';
-import { phonemeTokens, alignPhones } from './core.mjs?v=10';
+import { phonemeTokens, alignPhones } from './core.mjs?v=12';
 let instance, processedInputs = 0, output = [];
 const wordCaches = new WeakMap();
-export async function frenchPhones(reference, vocab, options = {}) {
+let queue=Promise.resolve();
+export function frenchPhones(reference,vocab,options={}){
+  const task=queue.then(()=>frenchPhonesInternal(reference,vocab,options));queue=task.catch(()=>{});return task;
+}
+async function frenchPhonesInternal(reference, vocab, options = {}) {
   const tokens = [...reference.matchAll(/[\p{L}\p{N}]+(?:[’'-][\p{L}\p{N}]+)*/gu)], words = tokens.map(token => token[0]);
   if (!words.length || words.length > 10000) throw Error('Le texte doit contenir entre 1 et 10 000 mots.');
   // The bundled eSpeak bridge accepts small JSON input batches. Bound both
@@ -13,7 +17,7 @@ export async function frenchPhones(reference, vocab, options = {}) {
     for (let offset = 0; offset < words.length; offset += batchWords) {
       const end = Math.min(words.length, offset + batchWords);
       const text = reference.slice(offset === 0 ? 0 : tokens[offset].index, tokens[end]?.index ?? reference.length).trim();
-      full.push(...(await frenchPhones(text, vocab, options)).map(phone => ({ ...phone, wordIndex: phone.wordIndex + offset })));
+      full.push(...(await frenchPhonesInternal(text, vocab, options)).map(phone => ({ ...phone, wordIndex: phone.wordIndex + offset })));
       options.onProgress?.(end / words.length);
     }
     return full;

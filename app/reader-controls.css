@@ -60,3 +60,5 @@
 }
 
 .reader-follow-text .reader-word.speaking{background:#dff3e6;color:#365f48;box-shadow:0 2px 0 #9bcdb0}.reader-follow-text .reader-word.speaking-word{background:#ffe1e6;color:#b32948;box-shadow:0 2px 0 #ed8299;font-weight:800}
+
+.reader-reanalysis-actions{display:flex;justify-content:flex-end;gap:10px;margin:0 0 16px}.reader-reanalysis-actions .btn{font-size:13px;max-width:100%}

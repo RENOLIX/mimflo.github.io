@@ -23,7 +23,7 @@ jobs:
           node-version: '22.15.0'
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npx vite build --config vite.pages.config.ts
+      - run: node scripts/build-pronunciation-score.mjs && npx vite build --config vite.pages.config.ts
         env:
           MIMFLO_MEMBER_API: ${{ vars.MIMFLO_MEMBER_API }}
       - uses: actions/configure-pages@v5

@@ -1,4 +1,5 @@
 import {soundDescription} from './sound-guidance';
+import {phonePracticeScore} from './pronunciation-score';
 export type ReportPhone = {expected:string;heard:string;word:string|null;wordIndex?:number|null;status:string;confidence:number|null;gop:number|null;start:number|null;end:number|null};
 export type ReportWord = {index:number;text:string;phones:ReportPhone[];status:'recognized'|'uncertain'|'missing'|'unavailable';confidence:number|null;pause:number|null};
 const wordPattern=/[\p{L}\p{N}]+(?:[’'-][\p{L}\p{N}]+)*/gu;
@@ -30,7 +31,7 @@ export function reportData(analysis:any){
  }
  for(const word of words){
   if(!word.phones.length)continue;
-  word.confidence=Math.round(word.phones.reduce((sum,p)=>sum+(p.confidence||0),0)/word.phones.length);
+  word.confidence=Math.round(word.phones.reduce((sum,p)=>sum+(analysis.scoreMethod==='phonetic-proximity-v1'?phonePracticeScore(p):p.confidence||0),0)/word.phones.length);
   word.status=word.phones.every(p=>p.status==='missing')?'missing':word.phones.every(p=>p.status==='match'&&(p.confidence??0)>=55)?'recognized':'uncertain';
  }
  const pauses=Array.isArray(analysis?.timing?.pauses)?analysis.timing.pauses:[];

@@ -8,9 +8,15 @@ propriétaire MimFlo est éteint. Le site et l’API d’accès restent héberg�
 
 - Wav2Vec2-Large LV60 multilingue avec tête **phonème CTC**, et non une tête ASR.
 - Conversion ONNX `onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX`, révision
-  `c69750f5043e5e1f8a71ab95dd3b98338c280c92`, poids quantifiés q8 de 318 Mo.
+  `c69750f5043e5e1f8a71ab95dd3b98338c280c92`, poids quantifiés q4 de 242 Mo.
 - eSpeak NG français via Piper WASM : passage entier pour préserver les liaisons.
-- Web Worker + ONNX Runtime WASM, un thread ; fenêtres de 6 s et contexte de 1 s.
+- Web Worker + ONNX Runtime WebGPU lorsqu’il est disponible, sinon WASM.
+  Fenêtres utiles de 2 s avec 0,5 s de contexte de chaque côté. Le tenseur est
+  toujours long de 3 s, y compris au début et à la fin, pour réutiliser les
+  mêmes kernels compilés. Les zéros de contexte ne sont pas ajoutés au vocal.
+- Préparation du moteur et de ses kernels en arrière-plan après affichage de la
+  page. Capture PCM 16 kHz ; fenêtres mesurées pendant l’enregistrement puis
+  réutilisées uniquement si leurs échantillons correspondent exactement au WAV.
 - Alignement des phones reconnus au passage, CTC forcé par groupes bornés,
   probabilités acoustiques et marge log entre le son attendu et son meilleur
   concurrent. La mesure reste ancrée dans l’intervalle sonore détecté.
@@ -22,10 +28,18 @@ phonétique. Le programme n’utilise pas OpenPronounce ni une API non configur�
 
 ## Sens des résultats
 
-Le pourcentage par phonème est la moyenne des probabilités du modèle dans son
-intervalle. L’indice global est leur moyenne sur tous les phonèmes attendus ;
-les sons non reconnus contribuent zéro. Les sons supplémentaires sont affichés
-séparément. Les phonèmes non reconnus n’ont pas de timestamps inventés.
+La confiance et la marge GOP brutes sont conservées par son. Le score de pratique
+emploie un barème progressif : les sons identiques reçoivent du crédit et les
+sons proches reçoivent un crédit partiel selon leurs caractéristiques phonétiques.
+Une probabilité du modèle n’est plus présentée directement comme une note de
+l’élève. Ce barème pédagogique n’est pas une calibration sur un corpus noté.
+Les sons non reconnus contribuent zéro ; leurs timestamps ne sont pas inventés.
+
+La lecture est alignée sur la partie effectivement prononcée dans l’article
+entier, même si le précédent point de reprise est ailleurs. Les index sont
+recalculés sur cet extrait avant la validation et la sauvegarde. Une ancienne
+analyse peut être réévaluée une fois avec son audio local, sans nouvelle séance
+ni nouveau quota d’essai. L’identifiant, le propriétaire et l’accès sont vérifiés.
 
 La marge GOP est une marge acoustique de type GOP, pas le GOP validé d’un
 système clinique ou d’un moteur commercial. Les symboles reconnus peuvent être
@@ -40,13 +54,13 @@ Le rythme affiche uniquement la durée de voix et les pauses mesurées.
 
 ## Stockage et limites
 
-Le premier chargement demande environ 360 Mo avec les bibliothèques. Cache
+Le premier chargement demande environ 285 Mo avec les bibliothèques. Cache
 Storage conserve les poids si le navigateur le permet. La durée et la mémoire
 nécessaires dépendent de l’appareil ; certains téléphones peuvent manquer de
 mémoire. L’élève peut annuler et son enregistrement reste disponible.
 
-La première séance gratuite reste limitée à 30 s et à une analyse unique.
-Les packs gardent une durée adaptée au passage, jusqu’à 10 minutes. L’inférence
+La première séance gratuite garde une analyse unique. Le temps de lecture est
+adapté à l’article. L’inférence
 locale ne consomme pas le quota Whisper Cloudflare. Aucune sauvegarde ne déclenche
 une conversion silencieuse vers Whisper : un échec reste visible et réessayable.
 
@@ -79,6 +93,9 @@ de nouvelle lecture ne modifient pas les quotas d’analyse.
 node scripts/verify-phonetics.mjs
 node backend/verify-phonetics.mjs
 node scripts/verify-reading-report.mjs
+node scripts/verify-reading-span.mjs
+node scripts/verify-streaming-analysis.mjs
+node .qa/check-reading-correction.cjs
 $env:MIMFLO_MEMBER_API='https://mimflo-members.pages.dev'
 npx vite build --config vite.pages.config.ts
 ```
