@@ -7,7 +7,7 @@ Le site public reste sur GitHub Pages. Les Functions du projet Cloudflare Pages 
 Connectez-vous sur `https://mimflo.com/admin/`. Le compte propriétaire peut créer des administrateurs et des clients. Changez le mot de passe initial depuis Mon profil → Sécurité de mon compte sur le site.
 
 - **Articles & bibliothèque** : les cartes « Mes bibliothèques » et « Ajouter un nouvel article » ouvrent les contenus ou l'éditeur. La bibliothèque générale est commune aux trois packs ; l'offre gratuite garde son article séparé. Les articles se présentent sur quatre colonnes sur ordinateur et peuvent être modifiés. Les nouvelles thématiques sont conservées automatiquement.
-- **Paiements** : vérifiez réellement le paiement, indiquez sa référence, puis validez. Le pack commence alors pour 5, 10 ou 15 jours.
+- **Paiements** : vérifiez réellement le paiement, indiquez sa référence, puis validez. Le pack commence alors pour 7, 15 ou 20 jours.
 - **Clients** : consultez le dossier, les accès, les demandes, les séances et les notes ; vous pouvez suspendre un accès.
 - **Comptes** : le formulaire apparaît au clic sur Ajouter un nouveau compte. La suppression désactive le compte et révoque ses sessions ; il reste restaurable avec son historique et son empreinte d'essai. Le propriétaire ne peut pas être supprimé.
 - **Réglages** : remplacez l'adresse PayPal fictive par votre adresse réelle. Les données de paiement ne sont jamais demandées directement par MimFlo.
@@ -24,7 +24,7 @@ Les articles créés dans l'administration restent dans la base privée, hors du
 
 ## Bibliothèque des packs payants
 
-Sprint, Intensif et Performance ouvrent le même catalogue pendant exactement 5, 10 et 15 périodes de 24 heures à compter de la validation du paiement. Les contrôles du serveur refusent tout nouvel accès, enregistrement ou analyse dès l'échéance, sans attendre une tâche planifiée. Le navigateur affiche le temps restant et ferme la lecture à l'expiration.
+Sprint, Intensif et Performance ouvrent le même catalogue pendant exactement 7, 15 et 20 périodes de 24 heures à compter de la validation du paiement. Les contrôles du serveur refusent tout nouvel accès, enregistrement ou analyse dès l'échéance, sans attendre une tâche planifiée. Le navigateur affiche le temps restant et ferme la lecture à l'expiration.
 
 Le client choisit un nouvel article toutes les 24 heures. Son article courant peut être relu et retravaillé jusqu'au choix suivant, dans la limite de l'abonnement. Le choix est enregistré atomiquement dans `paid_article_access`, pour tous ses appareils et packs ; changer de page, actualiser ou lancer deux demandes simultanées ne contourne pas le délai. Le catalogue n'envoie que les présentations : le texte complet est remis par `POST /articles/open` après contrôle. L'essai gratuit conserve ses règles indépendantes.
 

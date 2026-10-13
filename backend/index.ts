@@ -12,9 +12,10 @@ import {readingAssessment,validateAudio} from './reading-analysis';
 import {assessPhonemes,phonemeConfigured} from './phoneme-assessment';
 import {validateLocalAssessment} from './local-assessment';
 import {handlePlacement,ORAL_TEST_MAX_SECONDS} from './language-placement';
+import {packDays} from '../app/subscription-plans';
 type Env={DB:D1Database;ALLOWED_ORIGIN:string;IP_PEPPER:string;RESEND_API_KEY?:string;MAIL_FROM?:string;SMTP_HOST?:string;SMTP_USER?:string;SMTP_PASSWORD?:string;DEV_MODE?:string;AI_ENABLED?:string;AI?:{run:(model:string,input:any)=>Promise<any>};PHONEME_API_URL?:string;PHONEME_API_TOKEN?:string};
 type Row=Record<string,any>;
-const packs:Record<string,number>={sprint:5,intensif:10,performance:15};
+const packs=packDays;
 const empty={user:null,profile:null,notes:[],sessions:[],articles:[],requests:[],entitlements:[],paymentInstructions:''};
 async function saveArticleRecording(env:Env,user:Row,b:Row){
  const access=await activeAccess(env,user),article=(await allowedArticles(env,user)).find(a=>a.id===b.articleId);
