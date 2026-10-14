@@ -3,6 +3,10 @@ type LocalResult={transcript:string;analysis:any};
 let worker:Worker|null=null,idle:ReturnType<typeof setTimeout>|undefined;
 let rejectActive:(()=>void)|null=null,generation=0;
 const results=new Map<string,LocalResult>();
+let completedOnThisPage=false;
+const completedKey='mimflo-pronunciation-completed-v1';
+export function hasCompletedPronunciation(){try{return completedOnThisPage||localStorage.getItem(completedKey)==='1'}catch{return completedOnThisPage}}
+function markPronunciationCompleted(){completedOnThisPage=true;try{localStorage.setItem(completedKey,'1')}catch{/* The notice remains session-aware when storage is unavailable. */}}
 export const ANALYSIS_STALL_MS=120000;
 export const ANALYSIS_MAX_MS=600000;
 function releaseLater(){clearTimeout(idle);idle=setTimeout(()=>{if(!rejectActive){worker?.terminate();worker=null}},10*60000)}
@@ -41,7 +45,7 @@ export async function localPronunciation(wav:Uint8Array,reference:string,_second
     highest=percent;lastPhase=phase;
     const remaining=Number(e.data.remainingSeconds);
     onProgress?.({percent:Math.floor(percent),phase,remainingSeconds:e.data.remainingSeconds!=null&&Number.isFinite(remaining)&&remaining>0?remaining:null});
-   }else if(e.data.type==='result'){cleanup();results.set(key,e.data.result);while(results.size>3)results.delete(results.keys().next().value!);onProgress?.({percent:97,phase:'finishing'});resolve(e.data.result)}
+   }else if(e.data.type==='result'){cleanup();markPronunciationCompleted();results.set(key,e.data.result);while(results.size>3)results.delete(results.keys().next().value!);onProgress?.({percent:97,phase:'finishing'});resolve(e.data.result)}
    else if(e.data.type==='error'){cleanup();reject(new Error(e.data.message))}
   }
   function error(){active.terminate();if(worker===active)worker=null;cleanup();reject(new Error('L’analyse n’a pas démarré. Vérifiez votre connexion puis réessayez. Votre enregistrement reste disponible.'))}
