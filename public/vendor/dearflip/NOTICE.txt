@@ -1,0 +1,7 @@
+DearFlip 2.3.58 (DearHive / Deepak Ghimire), jQuery 3.7.1 (OpenJS Foundation), Three.js.
+The original distribution files and their copyright headers are retained without modification.
+Source: the public reference explicitly supplied by the site owner:
+https://js.dearflip.com/docs/basic-embed-using-html/
+Assets: https://js.dearflip.com/wp-content/plugins/dflip/assets/
+DearFlip commercial license information: https://js.dearflip.com/terms-and-conditions/license-terms/
+MimFlo's integration code is separate from the original vendor distribution.
