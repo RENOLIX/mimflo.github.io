@@ -25,7 +25,7 @@ import {adminHref} from './admin-url';
 import ProfileSidebar from './profile-sidebar';
 import MemberWelcome from './member-welcome';
 import PasswordPanel from './password-panel';
-import {prepareLocalPronunciation} from './local-pronunciation';
+
 import {resetLearningStorage} from './learning-reset';
 import './members.css';
 const navs=[['accueil','Accueil'],['bibliotheque','Bibliothèque'],['parcours','Mes parcours'],['progression','Ma progression'],['notes','Mes notes'],['packs','Abonnements']];
@@ -45,16 +45,6 @@ export default function MimFlo({initialHash}:{initialHash?:string}){
  const [initialRoute]=useState(()=>initialHash===undefined?null:routeFromHash(initialHash));
  const [view,setView]=useState(initialRoute?.view||'loading'),[articleId,setArticleId]=useState(initialRoute?.articleId||'reseaux'),[account,setAccount]=useState<any>(emptyAccount),[loading,setLoading]=useState(true),[loadError,setLoadError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[menu,setMenu]=useState(false);
  const [category,setCategory]=useState('Tous les articles'),[query,setQuery]=useState(''),[selectedPlan,setSelectedPlan]=useState('intensif'),[word,setWord]=useState(''),[definition,setDefinition]=useState(''),[tick,setTick]=useState(Date.now());
- // Prepare the local model after the first screen is usable. It runs in the background,
- // so sign-up stays immediate while later analyses can start without downloading first.
- useEffect(()=>{
-  if(loading||view==='admin')return;
-  let cancelled=false;
-  const start=()=>{if(!cancelled)prepareLocalPronunciation()};
-  const idle=(window as any).requestIdleCallback;
-  const handle=idle?idle(start,{timeout:2500}):window.setTimeout(start,1200);
-  return()=>{cancelled=true;if(idle)(window as any).cancelIdleCallback(handle);else window.clearTimeout(handle)};
- },[loading,view]);
  const guide=useLearningGuide(account.user?.id,!loading&&view!=='admin'&&view!=='verification');
  const [pendingIntent,setPendingIntent]=useState('');
  const [authMode,setAuthMode]=useState<'register'|'login'>('register');

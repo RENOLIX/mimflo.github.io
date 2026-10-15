@@ -1,6 +1,6 @@
 import {AutoModelForCTC,AutoProcessor,env} from './vendor/transformers.min.js';
 import {MODEL,REVISION,logSoftmaxRows} from './core.mjs?v=12';
-import {resilientInference,isMobileDevice} from './inference-recovery.mjs?v=2';
+import {resilientInference} from './inference-recovery.mjs?v=2';
 env.allowLocalModels=false;env.useBrowserCache=true;
 env.backends.onnx.wasm.numThreads=1;
 env.backends.onnx.wasm.wasmPaths=new URL('./vendor/',import.meta.url).href;
@@ -19,7 +19,10 @@ export function prepareEngine(onProgress){
   const vocab=await response.json(),labels=[];for(const [phone,index] of Object.entries(vocab))labels[index]=phone;
   const processorPromise=AutoProcessor.from_pretrained(MODEL,{revision:REVISION});
   // Mobile GPU availability is not evidence that it can hold this acoustic model.
-  let device='wasm';if(!isMobileDevice(self.navigator)&&!self.location.search.includes('cpu=1')&&self.navigator?.gpu){try{if(await self.navigator.gpu.requestAdapter())device='webgpu';}catch{}}
+  // Use the CPU backend explicitly: some Android drivers advertise WebGPU but
+  // cannot allocate even a 192 KB input buffer. UA detection is not sufficient
+  // when Chrome is in desktop mode. Never probe that broken path in production.
+  let device='wasm';
   diagnostic('model-loading',device);
   const options={revision:REVISION,dtype:'q4',device,progress_callback:p=>{if(p.status==='progress'&&/\.onnx(?:$|_)/.test(p.file||''))notify(Math.min(100,p.progress||0));}};
   let model;

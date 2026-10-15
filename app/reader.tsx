@@ -27,7 +27,8 @@ export default function Reader({articleId,account,back,save,refresh,go}:Props){
  const article=account.articles.find((a:any)=>a.id===articleId),userId=account.user?.id||'';
  const [reevaluating,setReevaluating]=useState(false);
  const text=useMemo(()=>articleText(article.paragraphs),[article.paragraphs]),words=useMemo(()=>readingWords(text),[text]);
- useEffect(()=>{prepareLocalPronunciation(text)},[text]);
+ // Preparation starts with recording. Downloading the acoustic model on entry
+ // competes with article audio and can stall playback on a mobile connection.
  const [bookReveal,setBookReveal]=useState<{word:number;id:number}|null>(null);
  const [noteAdding,setNoteAdding]=useState<string|null>(null),[noteStatus,setNoteStatus]=useState('');
  const [studio,setStudio]=useState(false),[studioTab,setStudioTab]=useState<'analysis'|'history'>('analysis');
@@ -108,7 +109,7 @@ export default function Reader({articleId,account,back,save,refresh,go}:Props){
   <div className="training-section-title"><span>01</span><div><h2>Lire l’article</h2><p>Votre point de reprise est indiqué en rose ; la phrase écoutée est en vert et le mot prononcé en rouge.</p></div></div>
   <ArticleFlipbook paragraphs={article.paragraphs} images={article.images} activeWord={listening.activeWord} activeRange={listening.activeRange} followWord={listening.playing||listening.paused?listening.activeWord:recording?liveWord:null} resumeWord={resumeWord} revealRequest={bookReveal} recording={recording} listening={listening.playing||listening.paused} onChooseWord={chooseWord}/>
   {error&&<p className="notice" role="status">{error}</p>}
-  <TrainingExercises text={text} analysis={latestAnalysis} vocabulary={article.words} practiceScope={userId+":"+articleId+":"+signature} onPracticeBusy={busy=>{setWordBusy(busy);if(busy)listening.stop()}} disabled={recording||starting||capturing||aiBusy||saving||phraseBusy} onListen={(start,end)=>{setError('');listening.playRange(start,end)}}/>
+  <TrainingExercises text={text} analysis={latestAnalysis} vocabulary={article.words} practiceScope={userId+":"+articleId+":"+signature} onPracticeBusy={busy=>{setWordBusy(busy);if(busy)listening.stop()}} disabled={recording||starting||capturing||aiBusy||saving||phraseBusy} onListen={(start,end)=>{setError('');listening.playExpression(readingRange(text,start,end))}}/>
 
   <PronunciationPhrases phrases={article.phrases||[]} scope={userId+':'+articleId} disabled={recording||starting||capturing||aiBusy||saving||wordBusy} onBusy={busy=>{setPhraseBusy(busy);if(busy)listening.stop()}} onListen={text=>listening.playExpression(text)}/>
   <LanguagePlacement articleId={articleId} articleTitle={article.title} disabled={recording||blocked} onOpen={()=>listening.stop()}/>
