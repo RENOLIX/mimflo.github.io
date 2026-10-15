@@ -5,6 +5,7 @@ import {speechSegments} from './speech-reading';
 import {synthesizeFrench,type VoiceClip} from './timed-voice';
 import {preparedFrenchVoice,type PreparedVoice} from './prepared-voice';
 import {LISTENING_SPEEDS,validListeningSpeed} from './listening-speeds';
+import {frenchDeviceVoice} from './french-device-voice';
 type Track={segments:ReturnType<typeof speechSegments>;cursor:number;whole:boolean;phrases:ReturnType<typeof speechSegments>;reference:string;first:number;last:number;sourceChecked?:boolean;prepared?:PreparedVoice};
 export function useArticleListening(text:string,onError:(message:string)=>void){
  const [playing,setPlaying]=useState(false),[paused,setPaused]=useState(false),[loading,setLoading]=useState(false),[percent,setPercent]=useState(0),[activeWord,setActiveWord]=useState<number|null>(null),[activeRange,setActiveRange]=useState<{first:number;last:number}|null>(null),[completed,setCompleted]=useState(false),[speed,setSpeedState]=useState<number>(LISTENING_SPEEDS.normal);
@@ -45,15 +46,17 @@ export function useArticleListening(text:string,onError:(message:string)=>void){
  async function resume(){if(spoken.current){window.speechSynthesis.resume();setPlaying(true);setPaused(false);return}if(!track.current){play();return}if(!clip.current){setPlaying(true);setPaused(false);setLoading(true);void next(++generation.current);return}const run=generation.current,current=track.current,a=player();a.onended=current.prepared?()=>finish(run):()=>{if(generation.current!==run)return;clearFrame();current.cursor++;void next(run)};try{await a.play();if(generation.current!==run)return;setLoading(false);setPlaying(true);setPaused(false);follow(run)}catch{onError('Appuyez de nouveau sur « Reprendre l’écoute » pour lancer la voix.')}}
  function toggle(){if(playing)pause();else if(paused)void resume();else play()}
  function restart(){play()}
- function playExpression(expression:string,value=rate.current){
+ async function playExpression(expression:string,value=rate.current){
   const isolated=expression.trim();if(!isolated)return;
-  stop();
+  stop();const run=generation.current;
   // Speak the actual exercise in isolation, never a time slice of the article.
   // The device voice avoids downloading a second neural model for a single word.
-  if('speechSynthesis' in window){
-   const utterance=new SpeechSynthesisUtterance(isolated),run=generation.current;
-   const voices=window.speechSynthesis.getVoices().filter(voice=>/^fr(?:-|_)/i.test(voice.lang));
-   utterance.voice=voices.find(voice=>voice.localService)||voices[0]||null;
+  setLoading(true);setPlaying(true);
+  const voice='speechSynthesis' in window?await frenchDeviceVoice(window.speechSynthesis):null;
+  if(generation.current!==run)return;
+  if(voice){
+   const utterance=new SpeechSynthesisUtterance(isolated);
+   utterance.voice=voice;
    utterance.lang='fr-FR';utterance.rate=value;spoken.current=utterance;
    utterance.onend=()=>{if(generation.current===run){spoken.current=null;setPlaying(false);setPaused(false)}};
    utterance.onerror=event=>{if(generation.current!==run||event.error==='canceled'||event.error==='interrupted')return;spoken.current=null;setPlaying(false);setPaused(false);onError('La voix française est indisponible sur cet appareil. Réessayez.')};
