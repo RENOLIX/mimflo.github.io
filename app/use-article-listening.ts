@@ -57,7 +57,7 @@ export function useArticleListening(text:string,onError:(message:string)=>void){
    utterance.lang='fr-FR';utterance.rate=value;spoken.current=utterance;
    utterance.onend=()=>{if(generation.current===run){spoken.current=null;setPlaying(false);setPaused(false)}};
    utterance.onerror=event=>{if(generation.current!==run||event.error==='canceled'||event.error==='interrupted')return;spoken.current=null;setPlaying(false);setPaused(false);onError('La voix française est indisponible sur cet appareil. Réessayez.')};
-   setPlaying(true);setPaused(false);setLoading(false);window.speechSynthesis.speak(utterance);return;
+   setPlaying(true);setPaused(false);setLoading(false);window.speechSynthesis.resume();window.speechSynthesis.speak(utterance);return;
   }
   unlock();rate.current=value;track.current={segments:speechSegments(isolated),cursor:0,whole:false,phrases:[],reference:isolated,first:0,last:readingWords(isolated).length};setPlaying(true);void next(++generation.current);
  }
