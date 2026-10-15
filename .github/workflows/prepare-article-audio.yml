@@ -1,0 +1,75 @@
+name: Prepare French article audio
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      articles: ${{ steps.matrix.outputs.articles }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.15.0'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - run: pip install piper-tts==1.8.0
+      - run: node scripts/prepare-article-audio.mjs plan && python scripts/prepare-article-audio.py phonemize && node scripts/prepare-article-audio.mjs align
+      - id: matrix
+        run: node -e "const fs=require('fs'),jobs=JSON.parse(fs.readFileSync('.qa/article-audio-jobs.json'));fs.appendFileSync(process.env.GITHUB_OUTPUT,'articles='+JSON.stringify(jobs.map((_,i)=>i))+'\n')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: voice-input-plan
+          path: .qa/article-audio-jobs.json
+          include-hidden-files: true
+          retention-days: 1
+  render:
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        article: ${{ fromJSON(needs.plan.outputs.articles) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts
+            public/speech
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install onnxruntime imageio-ffmpeg==0.6.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: voice-input-plan
+          path: .qa
+      - run: python scripts/prepare-article-audio.py render ${{ matrix.article }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: french-audio-${{ matrix.article }}
+          path: public/speech/ready/
+          retention-days: 1
+  publish:
+    needs: render
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: french-audio-*
+          path: public/speech/ready
+          merge-multiple: true
+      - run: node -e "const fs=require('fs');const names=fs.readdirSync('public/speech/ready').filter(n=>/^[a-f0-9]{64}\\.json$/.test(n));const expected=JSON.parse(fs.readFileSync('scripts/article-voice-catalogue.json','utf8').replace(/^\uFEFF/,'')).length;if(names.length!==expected)throw Error('Incomplete readings');fs.writeFileSync('app/prepared-voice-manifest.json',JSON.stringify(Object.fromEntries(names.map(n=>[n.slice(0,-5),'/speech/ready/'+n]))))"
+      - run: |
+          git config user.name 'MimFlo audio publisher'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/speech/ready app/prepared-voice-manifest.json
+          git diff --cached --quiet || git commit -m 'Publish prepared French readings with exact word timings'
+          git push
