@@ -7,7 +7,6 @@ import {localPronunciation,prepareLocalPronunciation,cancelLocalPronunciation,st
 import AnalysisLoadingOverlay from './analysis-loading-overlay';
 import {listVocabularyAttempts,saveVocabularyAttempt,deleteVocabularyAttempt,type VocabularyAttempt} from './vocabulary-practice-store';
 import {repetitionFeedback} from './reading-report-data';
-import {reportData} from './reading-report-data';
 
 type Props={phrase?:boolean;word:string;scope:string;definition:string;readingScore:number|null;disabled:boolean;locked:boolean;onBusy:(busy:boolean)=>void;onListen:()=>void};
 export default function VocabularyPractice({phrase=false,word,scope,definition,readingScore,disabled,locked,onBusy,onListen}:Props){
@@ -23,9 +22,6 @@ export default function VocabularyPractice({phrase=false,word,scope,definition,r
  async function analyse(attempt:VocabularyAttempt,operation=++run.current){
   lock(true);setStage('analysing');setProgress({percent:0,phase:'preparing'});setMessage('');
   try{const wav=await audioToWav(attempt.blob,30,.3);if(!mounted.current||operation!==run.current)return;const result=await localPronunciation(wav,word,attempt.seconds,setProgress,false,{wordPractice:!phrase,recordingId:attempt.id});if(!mounted.current||operation!==run.current)return;
-   if(phrase){const checked=reportData(result.analysis),recognized=checked.words.filter(item=>item.status==='recognized').length,total=checked.words.length,coverage=total?recognized/total:0;
-    if(coverage<.45||Number(result.analysis?.score||0)<35){await persist(attempt);update(attempt);setMessage('Cette répétition ne correspond pas à la phrase demandée. Lisez la phrase affichée, puis réessayez. Aucun score n’a été attribué.');return;}
-   }
    const measured={...attempt,analysis:result.analysis};update(measured);await persist(measured);if(mounted.current&&operation===run.current)setProgress({percent:100,phase:'done'});
   }catch(e:any){if(mounted.current&&operation===run.current)setMessage(e.message)}finally{if(mounted.current&&operation===run.current){setStage('idle');lock(false)}}
  }

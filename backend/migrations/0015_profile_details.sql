@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS profile_details (
+ user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ country TEXT NOT NULL DEFAULT '',
+ avatar TEXT NOT NULL DEFAULT 'initials'
+);

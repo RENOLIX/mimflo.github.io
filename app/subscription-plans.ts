@@ -1,7 +1,7 @@
 export const plans = [
-  {id:'sprint',name:'Pack Sprint',days:7,price:'10',features:['Bibliothèque complète','1 nouvel article / 24 h','Exercices ciblés','Défi oral : évaluez votre niveau','Suivi de progression','Accès aux notes']},
-  {id:'intensif',name:'Pack Intensif',days:15,price:'15',features:['Bibliothèque complète','1 nouvel article / 24 h','Exercices ciblés','Défi oral : évaluez votre niveau','Suivi de progression','Accès aux notes']},
-  {id:'performance',name:'Pack Performance',days:20,price:'20',features:['Bibliothèque complète','1 nouvel article / 24 h','Exercices ciblés','Défi oral : évaluez votre niveau','Suivi de progression','Accès aux notes']},
+  {id:'sprint',name:'Pack Sprint',days:7,price:'10',features:['Bibliothèque complète','Exercices ciblés','Défi oral : évaluez votre niveau','Suivi de progression','Accès aux notes']},
+  {id:'intensif',name:'Pack Intensif',days:15,price:'15',features:['Bibliothèque complète','Exercices ciblés','Défi oral : évaluez votre niveau','Suivi de progression','Accès aux notes']},
+  {id:'performance',name:'Pack Performance',days:20,price:'20',features:['Bibliothèque complète','Exercices ciblés','Défi oral : évaluez votre niveau','Suivi de progression','Accès aux notes']},
 ];
 
 // Payment approval and displayed cards use the same access durations.

@@ -1,5 +1,5 @@
 import {AutoModelForCTC,AutoProcessor,env} from './vendor/transformers.min.js';
-import {MODEL,REVISION,logSoftmaxRows} from './core.mjs?v=12';
+import {MODEL,REVISION,logSoftmaxRows} from './core.mjs?v=13';
 import {resilientInference} from './inference-recovery.mjs?v=2';
 env.allowLocalModels=false;env.useBrowserCache=true;
 env.backends.onnx.wasm.numThreads=1;

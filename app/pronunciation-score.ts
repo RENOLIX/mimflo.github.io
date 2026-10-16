@@ -18,5 +18,10 @@ export function phonePracticeScore(phone:{expected:string;heard?:string;status:s
 }
 export function pronunciationPracticeScore(phones:{expected:string;heard?:string;status:string;confidence?:number|null}[]){
  const expected=phones.filter(p=>p.expected);if(!expected.length)return 0;
- return Math.round(expected.reduce((sum,p)=>sum+phonePracticeScore(p),0)/expected.length);
+ const present=expected.filter(p=>p.status!=='missing');if(!present.length)return 0;
+ // A gentler practice scale, not a calibrated proficiency grade. Keep the
+ // underlying acoustic evidence and a coverage penalty for unread content.
+ const quality=present.reduce((sum,p)=>sum+phonePracticeScore(p),0)/present.length/100;
+ const coverage=present.length/expected.length;
+ return Math.round(100*Math.pow(quality,.65)*Math.pow(coverage,.85));
 }

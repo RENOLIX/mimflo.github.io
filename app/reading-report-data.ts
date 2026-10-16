@@ -31,7 +31,7 @@ export function reportData(analysis:any){
  }
  for(const word of words){
   if(!word.phones.length)continue;
-  word.confidence=Math.round(word.phones.reduce((sum,p)=>sum+(analysis.scoreMethod==='phonetic-proximity-v1'?phonePracticeScore(p):p.confidence||0),0)/word.phones.length);
+  word.confidence=Math.round(word.phones.reduce((sum,p)=>sum+(/^phonetic-proximity-v[12]$/.test(analysis.scoreMethod||'')?phonePracticeScore(p):p.confidence||0),0)/word.phones.length);
   word.status=word.phones.every(p=>p.status==='missing')?'missing':word.phones.every(p=>p.status==='match'&&(p.confidence??0)>=55)?'recognized':'uncertain';
  }
  const pauses=Array.isArray(analysis?.timing?.pauses)?analysis.timing.pauses:[];
