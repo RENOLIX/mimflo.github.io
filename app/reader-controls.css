@@ -59,10 +59,12 @@
  .reader-studio .btn,.reader-complete-article .reading-ai-panel .btn{min-height:44px;font-size:12px;line-height:1.4;white-space:normal;padding:10px 14px;max-width:100%;border-radius:12px}
 }
 
-.reader-follow-text .reader-word.speaking{background:#dff3e6;color:#365f48;box-shadow:0 2px 0 #9bcdb0}.reader-follow-text .reader-word.speaking-word{background:#ffe1e6;color:#b32948;box-shadow:0 2px 0 #ed8299;font-weight:800}
+.reader-follow-text .reader-word.speaking{background:#b8e7ce;color:#214f3d;box-shadow:0 2px 0 #6fb996}.reader-follow-text .reader-word.speaking-word{background:#ffb9c5;color:#8d1635;box-shadow:0 2px 0 #df5e7d;font-weight:800}
 
 .reader-reanalysis-actions{display:flex;justify-content:flex-end;gap:10px;margin:0 0 16px}.reader-reanalysis-actions .btn{font-size:13px;max-width:100%}
 
 /* Keep playback and recording controls available together while the article is speaking. */
 .reader-listen-control{min-height:44px;padding:11px 16px!important}
 @media(max-width:700px){.reader-listen-control{font-size:12px!important;padding:9px 10px!important;min-height:44px}.reader-record-dock .reader-listen-control{flex:1;min-width:0;white-space:normal;border-radius:12px}}
+
+.reader-record-button[data-slot="button"]{background:linear-gradient(110deg,#db8fa8,#eea0a8);color:#fff;box-shadow:0 4px 12px #d794a540}

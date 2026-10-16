@@ -34,9 +34,9 @@ export default function VocabularyPractice({phrase=false,word,scope,definition,r
    startPronunciationStream(attemptId,word);began.current=Date.now();rec.start();setStage('recording');prepareLocalPronunciation();timer.current=setTimeout(()=>{if(rec.state==='recording')rec.stop()},29000);
   }catch(e:any){stream.current?.getTracks().forEach(t=>t.stop());if(mounted.current&&operation===run.current){setStage('idle');lock(false);setMessage(e.name==='NotAllowedError'?'Autorisez le microphone pour répéter le mot.':e.message||'Le microphone est indisponible.')}}
  }
- function stop(){if(recorder.current?.state==='recording'){setStage('analysing');recorder.current.stop()}}
+ function stop(){if(recorder.current?.state==='recording'){recorder.current.stop()}}
  function cancel(){run.current++;cancelLocalPronunciation();setStage('idle');lock(false);setMessage('Analyse annulée. Votre répétition reste disponible pour réessayer.')}
- async function remove(id:string){try{await deleteVocabularyAttempt(id);setAttempts(previous=>previous.filter(a=>a.id!==id));if(selected===id)setSelected(null)}catch{setMessage('Impossible de supprimer cette répétition. Réessayez.')}}
+ async function remove(id:string){try{await deleteVocabularyAttempt(id);setAttempts(previous=>previous.filter(a=>a.id!==id));if(selected===id)setSelected(null);setMessage('')}catch{setMessage('Impossible de supprimer cette répétition. Réessayez.')}}
  const inactive=disabled||locked||stage!=='idle';
  const feedback=current?.analysis?repetitionFeedback(current.analysis):[];
  return <div className={'training-vocabulary-item'+(stage==='recording'?' is-recording':'')}>

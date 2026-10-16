@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useId,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
-import {Clock3,CheckCircle2} from 'lucide-react';
+import {Clock3,CheckCircle2,Check,LoaderCircle} from 'lucide-react';
 import type {AnalysisProgress} from './local-pronunciation';
 import {hasCompletedPronunciation} from './local-pronunciation';
 import './analysis-loading-overlay.css';
@@ -21,6 +21,7 @@ export default function AnalysisLoadingOverlay({canCancel=true,onCancel,progress
   <div className="analysis-loading-mark" aria-hidden="true"><span className="analysis-loading-orbit"/></div>
   <h2 id={titleId} role="status">Analyse en cours…</h2>
   {progress&&<div className="analysis-loading-percent" role="progressbar" aria-label="Avancement de l’analyse" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}><strong>{progress.percent}<span>%</span></strong></div>}
+  {progress&&<ol className="analysis-steps" aria-label="Étapes de l’analyse">{[['preparing','Préparation de votre enregistrement'],['analysing','Écoute et analyse des sons'],['finishing','Calcul de vos résultats'],['saving','Enregistrement de votre séance']].map(([phase,label],index)=>{const current=progress.phase===phase;const done=progress.phase==='done'||(['analysing','finishing','saving'].indexOf(progress.phase)>index);return <li key={phase} className={done?'done':current?'current':''}>{done?<Check size={14}/>:current?<LoaderCircle size={14}/>:<span>{index+1}</span>}<span>{label}</span>{done&&<small>Terminé</small>}</li>})}</ol>}
   {firstAnalysis&&<aside className="analysis-first-notice" id={noticeId} aria-label="À savoir pour votre première analyse">
    <div className="analysis-first-notice-heading"><span className="analysis-first-notice-icon" aria-hidden="true"><Clock3 size={19}/></span><span>Votre première analyse</span><span className="analysis-first-notice-time">Jusqu’à 10 min</span></div>
    <p>La première analyse peut prendre <strong>jusqu’à 10 minutes</strong>, selon votre appareil.</p>

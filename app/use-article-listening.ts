@@ -54,11 +54,11 @@ export function useArticleListening(text:string,onError:(message:string)=>void){
   // Speak the actual exercise in isolation, never a time slice of the article.
   // A local French device voice needs no download. Remote device voices expose
   // no reusable audio, so use the cached French synthesizer for those instead.
-  setLoading(true);setPlaying(true);
+  setLoading(false);setPlaying(true);
   const segments=speechSegments(isolated);
-  const cached=segments.length===1?await cachedFrenchAudio(segments[0].text):null;
-  if(generation.current!==run)return;
-  const voice=!cached&&'speechSynthesis' in window?await frenchDeviceVoice(window.speechSynthesis):null;
+  // Prefer the French voice already available on the device for isolated
+  // words and phrases, so the exercise starts without a model spinner.
+  const voice='speechSynthesis' in window?await frenchDeviceVoice(window.speechSynthesis):null;
   if(generation.current!==run)return;
   if(voice?.localService){
    const utterance=new SpeechSynthesisUtterance(isolated);
@@ -68,6 +68,8 @@ export function useArticleListening(text:string,onError:(message:string)=>void){
    utterance.onerror=event=>{if(generation.current!==run||event.error==='canceled'||event.error==='interrupted')return;spoken.current=null;setPlaying(false);setPaused(false);onError('La voix française est indisponible sur cet appareil. Réessayez.')};
    setPlaying(true);setPaused(false);setLoading(false);window.speechSynthesis.resume();window.speechSynthesis.speak(utterance);return;
   }
+  const cached=segments.length===1?await cachedFrenchAudio(segments[0].text):null;
+  if(generation.current!==run)return;
   unlock();rate.current=value;if(cached)prefetch.current={text:segments[0].text,result:Promise.resolve(cached)};track.current={segments,cursor:0,whole:false,phrases:[],reference:isolated,sourceChecked:true,first:0,last:readingWords(isolated).length};setPlaying(true);void next(++generation.current);
  }
  function setSpeed(value:number){if(!validListeningSpeed(value))return;rate.current=value;setSpeedState(value);if(audio.current)audio.current.playbackRate=value}
