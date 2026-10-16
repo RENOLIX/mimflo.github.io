@@ -15,7 +15,9 @@ export async function renderDearFlipPages(pages:BookPage[],copy:HTMLDivElement,a
  for(const [pageIndex,page] of pages.entries()){
   if(!alive())return [];fillReadingPage(copy,page.blocks);
   await Promise.all(Array.from(copy.querySelectorAll('img'),image=>image.decode().catch(()=>{})));if(!alive())return [];
-  const canvas=document.createElement('canvas'),scale=Math.min(2,window.devicePixelRatio||1);canvas.width=Math.round(width*scale);canvas.height=Math.round(height*scale);const ctx=canvas.getContext('2d')!;ctx.scale(scale,scale);ctx.fillStyle='#fffdf8';ctx.fillRect(0,0,width,height);
+  // Render page textures at a higher device pixel ratio so article text and
+  // the green/red reading markers remain crisp on high-density phones.
+  const canvas=document.createElement('canvas'),scale=Math.min(3,Math.max(2,window.devicePixelRatio||1));canvas.width=Math.round(width*scale);canvas.height=Math.round(height*scale);const ctx=canvas.getContext('2d')!;ctx.scale(scale,scale);ctx.fillStyle='#fffdf8';ctx.fillRect(0,0,width,height);
   const origin=paper.getBoundingClientRect(),links:DearFlipPage['links']=[];
   // Draw the actual laid-out glyphs. The page texture bends with DearFlip's mesh;
   // its matching annotation rectangles retain word selection and vocal highlighting.
