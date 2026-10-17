@@ -26,7 +26,7 @@ Les articles créés dans l'administration restent dans la base privée, hors du
 
 Sprint, Intensif et Performance ouvrent le même catalogue pendant exactement 7, 15 et 20 périodes de 24 heures à compter de la validation du paiement. Les contrôles du serveur refusent tout nouvel accès, enregistrement ou analyse dès l'échéance, sans attendre une tâche planifiée. Le navigateur affiche le temps restant et ferme la lecture à l'expiration.
 
-Le client choisit un nouvel article toutes les 24 heures. Son article courant peut être relu et retravaillé jusqu'au choix suivant, dans la limite de l'abonnement. Le choix est enregistré atomiquement dans `paid_article_access`, pour tous ses appareils et packs ; changer de page, actualiser ou lancer deux demandes simultanées ne contourne pas le délai. Le catalogue n'envoie que les présentations : le texte complet est remis par `POST /articles/open` après contrôle. L'essai gratuit conserve ses règles indépendantes.
+Tous les articles publiés de la bibliothèque commune sont accessibles pendant la durée du pack. Le texte complet est remis par `POST /articles/open` après contrôle de l’abonnement. L’essai gratuit conserve ses règles indépendantes.
 
 Appliquer `backend/migrations/0006_general_library.sql` avant de déployer l'API. La migration ajoute les tables de choix et leur historique et rend les anciens articles payants communs aux trois packs, sans modifier les liens de l'essai. Les textes importés restent dans D1 ; ne pas ajouter les documents ou leur SQL d'import au dépôt public.
 

@@ -3,11 +3,11 @@ export const PAID_PACKS = ['sprint','intensif','performance'];
 
 export async function paidLibraryState(db:D1Database,userId:string,entitlements:Record<string,any>[],at:number){
  if(!entitlements.length)return null;
- const choice=await db.prepare('SELECT * FROM paid_article_access WHERE user_id=?').bind(userId).first<Record<string,any>>();
- return {serverNow:at,startsAt:Math.min(...entitlements.map(e=>e.starts_at)),endsAt:Math.max(...entitlements.map(e=>e.ends_at)),currentArticleId:choice?.article_id||null,nextArticleAt:choice?.next_at||at,canChoose:!choice||choice.next_at<=at};
+ return {serverNow:at,startsAt:Math.min(...entitlements.map(e=>e.starts_at)),endsAt:Math.max(...entitlements.map(e=>e.ends_at)),currentArticleId:null,nextArticleAt:at,canChoose:true};
 }
 
-// A single conditional write is the daily gate, shared by all packs and devices.
+// Paid packs share one library. Article selection is no longer limited to one
+// choice per day; the entitlement expiry remains the access boundary.
 export async function choosePaidArticle(db:D1Database,userId:string,articleId:string,at:number){
  const selected=await db.prepare(`INSERT INTO paid_article_access(user_id,article_id,selected_at,next_at)
  SELECT ?,?,?,? WHERE EXISTS (SELECT 1 FROM entitlements WHERE user_id=? AND revoked=0 AND starts_at<=? AND ends_at>?)

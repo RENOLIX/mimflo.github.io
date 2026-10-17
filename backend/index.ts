@@ -100,8 +100,6 @@ async function route(request:Request,env:Env){const url=new URL(request.url),pat
   if(access.type==='trial'){const a=(await allowedArticles(env,user)).find(a=>a.id===aid);if(!a)fail(403,'Cet article n’est pas inclus dans votre essai gratuit.');return {article:await hydrateArticle(env,request,a),libraryAccess:null};}
   const a=await env.DB.prepare("SELECT a.* FROM articles a WHERE a.id=? AND a.published=1 AND EXISTS(SELECT 1 FROM article_packs p WHERE p.article_id=a.id AND p.pack IN ('sprint','intensif','performance'))").bind(aid).first<Row>();
   if(!a)fail(404,'Article indisponible.');
-  const at=now(),choice=await choosePaidArticle(env.DB,user.id,aid,at);
-  if(!choice.allowed)fail(429,'Votre article est déjà choisi. Un nouvel article se débloquera 24 heures après votre dernier choix.');
   const currentAccess=await activeAccess(env,user);if(currentAccess.type!=='paid')fail(403,'Votre abonnement a expiré.');
   return {article:await hydrateArticle(env,request,a),libraryAccess:await paidLibraryState(env.DB,user.id,currentAccess.entitlements,now())};
  }

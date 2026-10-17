@@ -5,7 +5,7 @@ import {Button} from '@/components/ui/button';
 import HomePacks from './home-packs';
 export function Brand({footer=false}: {footer?:boolean}){return <a href="#accueil" className={footer?'brand brand-footer':'brand'} aria-label="MimFlo — accueil"><img src="/assets/mimflo-logo-3d-transparent.png" alt="MimFlo" width="2168" height="725"/></a>}
 export function SiteCredit(){return <div className="footer-credit"><a href="https://sitemagique.com" target="_blank" rel="noopener noreferrer">Developed by <strong>SITEMAGIQUE</strong></a></div>}
-const navs=[['accueil','Accueil'],['bibliotheque','Bibliothèque'],['parcours','Mes parcours'],['progression','Ma progression'],['notes','Mes notes'],['packs','Abonnements']];
+const navs=[['accueil','Accueil'],['bibliotheque','Bibliothèque'],['entrainement','Mon entraînement'],['progression','Ma progression'],['notes','Mes notes'],['packs','Abonnements']];
 export default function Welcome({go,selectedPlan,onSelectPlan}: {go:(view:string,articleId?:string)=>void;selectedPlan:string;onSelectPlan:(plan:string)=>void}){
  const [menu,setMenu]=useState(false);
  return <div className="site welcome-page">
