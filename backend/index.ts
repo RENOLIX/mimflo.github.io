@@ -51,7 +51,7 @@ async function activeAccess(env:Env,user:Row){const granted=await env.DB.prepare
 async function allowedArticles(env:Env,user:Row){
  const access=await activeAccess(env,user);if(!access.packs.length)return [];
  if(access.type==='paid'){
-  const rows=await env.DB.prepare("SELECT a.* FROM articles a JOIN paid_article_access c ON c.article_id=a.id WHERE c.user_id=? AND a.published=1 AND EXISTS(SELECT 1 FROM article_packs p WHERE p.article_id=a.id AND p.pack IN ('sprint','intensif','performance'))").bind(user.id).all<Row>();return rows.results.map(article);
+  const rows=await env.DB.prepare("SELECT DISTINCT a.* FROM articles a JOIN article_packs p ON p.article_id=a.id WHERE a.published=1 AND p.pack IN ('sprint','intensif','performance') ORDER BY a.title").all<Row>();return rows.results.map(article);
  }
  const rows=await env.DB.prepare("SELECT DISTINCT a.* FROM articles a JOIN article_packs p ON p.article_id=a.id WHERE a.published=1 AND p.pack='trial' ORDER BY a.title LIMIT 1").all<Row>();return rows.results.map(article);
 }

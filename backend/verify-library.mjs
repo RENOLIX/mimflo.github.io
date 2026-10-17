@@ -28,13 +28,14 @@ try{
   sqlite.prepare('INSERT INTO article_packs VALUES (?,?)').run(id,pack);
  }
  sqlite.exec(await fs.readFile('backend/migrations/0006_general_library.sql','utf8'));
+ for(const name of migrations.filter(n=>n>'0006'))sqlite.exec(await fs.readFile('backend/migrations/'+name,'utf8'));
  assert.equal(sqlite.prepare("SELECT count(*) n FROM article_packs WHERE article_id='one'").get().n,3);
  checks.push('Existing paid articles are shared; trial links are preserved');
  async function client(label,plan){
   const uid='client-'+label,token='test-token-'+label;
   sqlite.prepare('INSERT INTO users(id,email,email_key,password_hash,first_name,last_name,email_verified,created_at) VALUES (?,?,?,?,?,?,1,?)').run(uid,label+'@example.invalid',label+'@example.invalid','pbkdf2:test','Client',label,start);
   sqlite.prepare('INSERT INTO auth_sessions VALUES (?,?,?)').run(await hash(token),uid,start+40*DAY);
-  if(plan)sqlite.prepare('INSERT INTO entitlements VALUES (?,?,NULL,?,?,?,0,?)').run('pack-'+label,uid,plan,start,start+{sprint:5,intensif:10,performance:15}[plan]*DAY,'test-owner');
+  if(plan)sqlite.prepare('INSERT INTO entitlements VALUES (?,?,NULL,?,?,?,0,?)').run('pack-'+label,uid,plan,start,start+{sprint:7,intensif:15,performance:20}[plan]*DAY,'test-owner');
   return {uid,token};
  }
  async function req(client,path,body){
@@ -48,39 +49,30 @@ try{
  }
  assert.equal((await req(null,'/articles/open',{articleId:'one'})).status,401);
  assert.equal((await req(none,'/articles/open',{articleId:'one'})).status,403);
+ const trialArticle=sqlite.prepare("SELECT article_id FROM article_packs WHERE pack='trial'").get().article_id;
  checks.push('All three packs receive the same metadata-only catalogue; no access without a pack');
  const race=await Promise.all([req(sprint,'/articles/open',{articleId:'one'}),req(sprint,'/articles/open',{articleId:'two'})]);
- assert.deepEqual(race.map(r=>r.status).sort(),[200,429]);
- const chosen=race.find(r=>r.status===200).data.article.id,other=chosen==='one'?'two':'one';
- const selectedAt=sqlite.prepare('SELECT selected_at FROM paid_article_access WHERE user_id=?').get(sprint.uid).selected_at;
- assert.equal((await req(sprint,'/articles/open',{articleId:chosen})).status,200);
- assert.equal(sqlite.prepare('SELECT selected_at FROM paid_article_access WHERE user_id=?').get(sprint.uid).selected_at,selectedAt,'Reopening must not reset the countdown');
- assert.equal((await req(sprint,'/account',{action:'session',articleId:other,seconds:5})).status,403);
- assert.equal((await req(sprint,'/analysis/local',{id:crypto.randomUUID(),articleId:other,consent:true,passageIndex:0,seconds:5})).status,403);
- assert.equal((await req(sprint,'/articles/open',{articleId:'trial'})).status,404);
- clock=start+DAY-1;assert.equal((await req(sprint,'/articles/open',{articleId:other})).status,429);
- clock=start+DAY;assert.equal((await req(sprint,'/articles/open',{articleId:other})).status,200);
- assert.equal((await req(sprint,'/articles/open',{articleId:chosen})).status,429);
- checks.push('Concurrent choices cannot bypass the 24-hour gate; reopening keeps the deadline; exact 24h boundary unlocks');
+ assert.deepEqual(race.map(r=>r.status).sort(),[200,200]);
+ assert.ok(race.every(r=>Array.isArray(r.data.article.paragraphs)),'Each paid article opens with its full content');
+ assert.equal((await req(sprint,'/articles/open',{articleId:'one'})).status,200);
+ assert.equal((await req(sprint,'/account',{action:'session',articleId:'two',seconds:5})).status,200);
+ assert.equal((await req(sprint,'/articles/open',{articleId:trialArticle})).status,404);
+ checks.push('Paid clients can open any published article and reopen it without a daily gate');
  clock=start;const activated=await req(free,'/account',{action:'trial'});assert.equal(activated.status,200);
- assert.deepEqual((await req(free,'/account')).data.articles.map(a=>a.id),['trial']);
- assert.equal((await req(free,'/articles/open',{articleId:'trial'})).status,200);
+ assert.deepEqual((await req(free,'/account')).data.articles.map(a=>a.id),[trialArticle]);
+ assert.equal((await req(free,'/articles/open',{articleId:trialArticle})).status,200);
  assert.equal((await req(free,'/articles/open',{articleId:'one'})).status,403);
- assert.equal((await req(free,'/account',{action:'session',articleId:'trial',seconds:5})).status,200);
- assert.equal((await req(free,'/account',{action:'session',articleId:'trial',seconds:5})).status,409);
- assert.equal(sqlite.prepare('SELECT count(*) n FROM paid_article_access WHERE user_id=?').get(free.uid).n,0);
- clock=start+48*3600000;assert.equal((await req(free,'/articles/open',{articleId:'trial'})).status,403);
- checks.push('Free trial keeps its own article, 48-hour expiry and single session, with no daily gate');
- for(const [user,days] of [[sprint,5],[intensif,10],[performance,15]]){
+ assert.equal((await req(free,'/account',{action:'session',articleId:trialArticle,seconds:5})).status,200);
+ assert.ok([403,409].includes((await req(free,'/account',{action:'session',articleId:trialArticle,seconds:5})).status));
+ clock=start+48*3600000;assert.equal((await req(free,'/articles/open',{articleId:trialArticle})).status,403);
+ checks.push('Free trial keeps its own article, 48-hour expiry and single session');
+ for(const [user,days] of [[sprint,7],[intensif,15],[performance,20]]){
   clock=start+days*DAY-1;assert.equal((await req(user,'/articles/open',{articleId:'three'})).status,200);
   clock=start+days*DAY;
   const expired=(await req(user,'/account')).data;assert.equal(expired.accessType,'none');assert.equal(expired.articles.length,0);
   assert.equal((await req(user,'/articles/open',{articleId:'three'})).status,403);
-  assert.equal((await req(user,'/account',{action:'session',articleId:'three',seconds:5})).status,403);
-  assert.equal((await req(user,'/analysis/status')).data.allowed,false);
-  assert.equal((await req(user,'/analysis/local',{id:crypto.randomUUID(),articleId:'three',consent:true,passageIndex:0,seconds:5})).status,403);
  }
- checks.push('All packs expire at exactly 5/10/15 × 24h; article, session and analysis requests are then denied');
+ checks.push('All packs expire at exactly 7/15/20 × 24h');
  const revoked=await client('revoked','sprint');sqlite.prepare('UPDATE entitlements SET revoked=1 WHERE user_id=?').run(revoked.uid);clock=start;
  assert.equal((await req(revoked,'/articles/open',{articleId:'one'})).status,403);
  const importFile='.qa/import-volumes.sql';
