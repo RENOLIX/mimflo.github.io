@@ -15,7 +15,7 @@ assert.equal((await req('/checkout',{plan:'sprint',customer:{}},client)).status,
 const customer={firstName:'Client',lastName:'Test',country:'DZ',address:'1 rue du Test',city:'Alger',postalCode:'16000',phone:'+213555000000',level:'B2',exam:'TCF'};
 assert.equal((await req('/checkout',{plan:'sprint',customer:{...customer,country:'XX'},consent:true},client)).status,400);
 await req('/admin/action',{action:'paypal',email:'paypal@example.invalid'},owner);
-const order=await req('/checkout',{plan:'sprint',customer,consent:true,amount:1},client);assert.equal(order.status,200);assert.equal(order.data.paypalReady,false);assert.equal(order.data.paypalUrl,undefined);
+const order=await req('/checkout',{plan:'sprint',customer,consent:true,amount:1},client);assert.equal(order.status,200);assert.equal(order.data.paypalReady,true);assert.equal(order.data.paypalUrl,'https://www.paypal.com/ncp/payment/9V88R3WTPU4PS');assert.equal(order.data.amount,'10.00');
 assert.equal((await req('/checkout',{plan:'sprint',customer,consent:true},client)).data.id,order.data.id,'Retry does not create duplicate orders');
 assert.equal((await req('/account',undefined,client)).data.articles.length,0);
 const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aL1sAAAAASUVORK5CYII=';
@@ -43,6 +43,6 @@ assert.equal((await req('/auth/login',{email:profile.email,password:profile.pass
 await req('/admin/action',{action:'paypal',email:'merchant@example.com'},owner);
 const relogin=(await req('/auth/login',{email:profile.email,password:profile.password})).data.token;
 const payable=await req('/checkout',{plan:'sprint',customer,consent:true,amount:1},relogin);
-assert.equal(new URL(payable.data.paypalUrl).hostname,'www.paypal.com');assert.equal(new URL(payable.data.paypalUrl).searchParams.get('amount'),'10');
+assert.equal(payable.data.paypalUrl,'https://www.paypal.com/ncp/payment/9V88R3WTPU4PS');assert.equal(payable.data.amount,'10.00');
 await req('/admin/action',{action:'paypal',email:'paypal@example.invalid'},owner);
-console.log('PASS: authenticated checkout, server prices, dummy PayPal, order details, private media upload, article editing, persistent topics, account deletion/restore, owner protection.');
+console.log('PASS: authenticated checkout, server prices and hosted PayPal links, order details, private media upload, article editing, persistent topics, account deletion/restore, owner protection.');

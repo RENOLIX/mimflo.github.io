@@ -18,7 +18,7 @@ Les téléversements JPEG, PNG et WebP sont optimisés côté navigateur (1600 p
 
 Le checkout exige un compte connecté et collecte les coordonnées du client, son pays, son niveau et son objectif. La commande apparaît dans Paiements avec un identifiant unique. Les montants sont fixés par le serveur : 10, 15 et 20 USD. Une nouvelle tentative de checkout réutilise la commande en attente du même pack.
 
-Avec l'adresse provisoire `paypal@example.invalid`, la commande est enregistrée sans demander de paiement. Une fois une véritable adresse configurée, le bouton dirige vers le paiement hébergé PayPal Standard. Le retour de PayPal n'active jamais les accès : l'administrateur doit vérifier le paiement reçu et sa référence. Aucun webhook de validation automatique n'est configuré.
+Chaque pack utilise son lien de paiement PayPal hébergé, défini dans `backend/paypal-checkout.ts` : Sprint `9V88R3WTPU4PS`, Intensif `PZMUSTBZ6QGSL`, Performance `WXGAA5VBZCXBQ`. Le serveur sélectionne le lien depuis le pack validé, conserve les informations de paiement avec la commande (`requests.payment`, migration `0016_checkout_payment.sql`) et ignore les montants ou liens soumis par le navigateur. Une nouvelle tentative réutilise la commande en attente du même pack. Les liens sont affichés dans Réglages et dans la commande admin. Aucun SDK PayPal n’est chargé. Le retour de PayPal n’active jamais les accès : l’administrateur vérifie le paiement reçu et sa référence. Aucun webhook de validation automatique n’est configuré.
 
 Les articles créés dans l'administration restent dans la base privée, hors du code du site public. Une simple inscription ou demande d'abonnement n'ouvre aucun pack payant.
 
